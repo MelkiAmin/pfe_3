@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 30px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: #1976d2; color: white; padding: 24px 32px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .body { padding: 32px; }
+    .info-box { background: #f0f7ff; border-left: 4px solid #1976d2; padding: 16px; border-radius: 4px; margin: 20px 0; }
+    .ticket-badge { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 16px; font-weight: bold; margin: 4px 0; }
+    .footer { background: #f8f8f8; padding: 16px 32px; font-size: 12px; color: #999; text-align: center; }
+    .btn { display: inline-block; background: #1976d2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎟️ Commande confirmée — HotelMate</h1>
+    </div>
+    <div class="body">
+      <p>Bonjour <strong>{{ user.first_name }}</strong>,</p>
+      <p>Votre paiement pour l'événement <strong>"{{ event.title }}"</strong> a été traité avec succès.</p>
+      <div class="info-box">
+        <p><strong>Montant payé :</strong> {{ payment.amount }} {{ payment.currency }}</p>
+        <p><strong>Nombre de billets :</strong> {{ ticket_count }}</p>
+        <p><strong>Référence :</strong> #{{ payment.id }}</p>
+      </div>
+      {% for ticket in tickets %}
+      <div>
+        <span class="ticket-badge">Billet #{{ ticket.ticket_number }}</span>
+        {% if ticket.qr_code %}
+        <p style="font-size:12px;color:#666;">QR code disponible dans votre espace personnel.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <p style="margin-top:24px;">Connectez-vous à votre compte pour accéder à vos billets et codes QR.</p>
+    </div>
+    <div class="footer">
+      © HotelMate — Plateforme de billetterie événementielle
+    </div>
+  </div>
+</body>
+</html>

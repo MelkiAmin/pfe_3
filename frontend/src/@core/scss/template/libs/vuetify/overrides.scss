@@ -1,0 +1,14 @@
+@use "@core/scss/base/utils";
+@use "@configured-variables" as variables;
+
+body {
+  font-size: 15px !important;
+
+  .v-input--density-compact {
+    --v-input-chips-margin-bottom: 1px;
+  }
+}
+
+.text-caption {
+  color: rgba(var(--v-theme-on-background), var(--v-disabled-opacity));
+}

@@ -1,0 +1,11 @@
+Bonjour {{ user.first_name }},
+
+Rappel : l'événement "{{ event.title }}" commence bientôt !
+
+Date : {{ event.start_date }}
+Lieu : {{ event.venue_name }} — {{ event.city }}
+
+Vous avez {{ tickets|length }} billet(s) pour cet événement. N'oubliez pas votre QR code !
+
+À bientôt,
+L'équipe HotelMate

@@ -1,0 +1,18 @@
+{
+  "nav.dashboard": "لوحة التحكم",
+  "nav.events": "الفعاليات",
+  "nav.workspace": "مساحة العمل",
+  "nav.wallet": "المحفظة",
+  "nav.organizer": "المنظم",
+  "nav.admin": "الإدارة",
+  "auth.login_title": "تسجيل الدخول",
+  "auth.email": "البريد الإلكتروني",
+  "auth.password": "كلمة المرور",
+  "auth.remember_me": "تذكرني",
+  "auth.sign_in": "دخول",
+  "auth.invalid_credentials": "البريد أو كلمة المرور غير صحيحة.",
+  "cart.title": "السلة",
+  "cart.checkout": "إتمام الدفع",
+  "event.free": "مجاني",
+  "event.view_details": "عرض التفاصيل"
+}

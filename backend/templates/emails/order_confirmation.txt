@@ -1,0 +1,12 @@
+Bonjour {{ user.first_name }},
+
+Votre commande pour l'événement "{{ event.title }}" a été confirmée !
+
+Détails de la commande :
+- Montant payé : {{ payment.amount }} {{ payment.currency }}
+- Nombre de billets : {{ ticket_count }}
+
+Vos billets sont disponibles dans votre espace personnel sur HotelMate.
+
+À bientôt,
+L'équipe HotelMate

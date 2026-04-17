@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ event.title }} Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --panel: rgba(255, 255, 255, 0.8);
+      --panel-strong: #fffdf9;
+      --text: #1f1f1f;
+      --muted: #65615b;
+      --accent: #0d6a6a;
+      --accent-soft: #d3ece8;
+      --gold: #c98f2d;
+      --border: rgba(31, 31, 31, 0.08);
+      --shadow: 0 20px 45px rgba(30, 24, 14, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(201, 143, 45, 0.2), transparent 35%),
+        linear-gradient(180deg, #f8f4eb 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding: 28px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(13, 106, 106, 0.96), rgba(29, 58, 74, 0.96));
+      color: #f8fbfb;
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      margin: 0;
+      font-size: 0.8rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.75;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 1;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 720px;
+      color: rgba(248, 251, 251, 0.82);
+      font-size: 1rem;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card,
+    .chart-card {
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 20px;
+    }
+
+    .card-label {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .card-value {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 700;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      padding: 20px;
+    }
+
+    .chart-card h2 {
+      margin: 0 0 16px;
+      font-size: 1.1rem;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 320px;
+    }
+
+    .table-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: rgba(13, 106, 106, 0.08);
+    }
+
+    th,
+    td {
+      padding: 16px 18px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    @media (max-width: 900px) {
+      .summary-grid,
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Event Analytics Dashboard</p>
+      <h1>{{ event.title }}</h1>
+      <p class="subtitle">
+        Track ticket sales, revenue, and attendee growth for this event with live Django-backed analytics.
+      </p>
+    </section>
+
+    <section class="summary-grid">
+      <article class="card">
+        <p class="card-label">Tickets Sold</p>
+        <p id="tickets-sold" class="card-value">0</p>
+      </article>
+      <article class="card">
+        <p class="card-label">Revenue</p>
+        <p id="revenue" class="card-value">$0.00</p>
+      </article>
+      <article class="card">
+        <p class="card-label">Users</p>
+        <p id="users" class="card-value">0</p>
+      </article>
+    </section>
+
+    <section class="chart-grid">
+      <article class="chart-card">
+        <h2>Sales Timeline</h2>
+        <div class="chart-wrap">
+          <canvas id="timeline-chart"></canvas>
+        </div>
+      </article>
+      <article class="chart-card">
+        <h2>Ticket Type Breakdown</h2>
+        <div class="chart-wrap">
+          <canvas id="ticket-type-chart"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="chart-card table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket Type</th>
+            <th>Sold</th>
+            <th>Revenue</th>
+          </tr>
+        </thead>
+        <tbody id="ticket-type-table">
+          <tr>
+            <td colspan="3" class="empty">Loading analytics…</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const analyticsUrl = "{{ analytics_api_url|escapejs }}";
+
+    const timelineCtx = document.getElementById('timeline-chart');
+    const ticketTypeCtx = document.getElementById('ticket-type-chart');
+    const ticketSoldEl = document.getElementById('tickets-sold');
+    const revenueEl = document.getElementById('revenue');
+    const usersEl = document.getElementById('users');
+    const ticketTypeTable = document.getElementById('ticket-type-table');
+
+    const palette = ['#0d6a6a', '#c98f2d', '#254f68', '#d76752', '#57886c', '#6f5f90'];
+
+    function formatMoney(value) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+      }).format(Number(value || 0));
+    }
+
+    function renderTable(ticketTypes) {
+      if (!ticketTypes.length) {
+        ticketTypeTable.innerHTML = '<tr><td colspan="3" class="empty">No ticket sales yet.</td></tr>';
+        return;
+      }
+
+      ticketTypeTable.innerHTML = ticketTypes.map(row => `
+        <tr>
+          <td>${row.name}</td>
+          <td>${row.sold}</td>
+          <td>${formatMoney(row.revenue)}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadAnalytics() {
+      const response = await fetch(analyticsUrl, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to load event analytics.');
+      }
+
+      return response.json();
+    }
+
+    function renderCharts(data) {
+      ticketSoldEl.textContent = data.summary.tickets_sold;
+      revenueEl.textContent = formatMoney(data.summary.revenue);
+      usersEl.textContent = data.summary.users;
+
+      new Chart(timelineCtx, {
+        type: 'bar',
+        data: {
+          labels: data.timeline.labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Tickets Sold',
+              data: data.timeline.tickets_sold,
+              backgroundColor: 'rgba(13, 106, 106, 0.8)',
+              borderRadius: 8,
+              yAxisID: 'y',
+            },
+            {
+              type: 'line',
+              label: 'Revenue',
+              data: data.timeline.revenue,
+              borderColor: '#c98f2d',
+              backgroundColor: 'rgba(201, 143, 45, 0.2)',
+              tension: 0.35,
+              fill: true,
+              yAxisID: 'y1',
+            },
+            {
+              type: 'line',
+              label: 'Users',
+              data: data.timeline.users,
+              borderColor: '#254f68',
+              backgroundColor: '#254f68',
+              tension: 0.25,
+              yAxisID: 'y',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Tickets / Users',
+              },
+            },
+            y1: {
+              beginAtZero: true,
+              position: 'right',
+              grid: {
+                drawOnChartArea: false,
+              },
+              title: {
+                display: true,
+                text: 'Revenue',
+              },
+            },
+          },
+        },
+      });
+
+      new Chart(ticketTypeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: data.ticket_types.map(item => item.name),
+          datasets: [
+            {
+              data: data.ticket_types.map(item => item.sold),
+              backgroundColor: data.ticket_types.map((_, index) => palette[index % palette.length]),
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+            },
+          },
+        },
+      });
+
+      renderTable(data.ticket_types);
+    }
+
+    loadAnalytics()
+      .then(renderCharts)
+      .catch(error => {
+        ticketTypeTable.innerHTML = `<tr><td colspan="3" class="empty">${error.message}</td></tr>`;
+      });
+  </script>
+</body>
+</html>

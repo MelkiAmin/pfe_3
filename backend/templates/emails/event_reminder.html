@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 30px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: #e65100; color: white; padding: 24px 32px; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .body { padding: 32px; }
+    .info-box { background: #fff3e0; border-left: 4px solid #e65100; padding: 16px; border-radius: 4px; margin: 20px 0; }
+    .footer { background: #f8f8f8; padding: 16px 32px; font-size: 12px; color: #999; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⏰ Rappel d'événement — HotelMate</h1>
+    </div>
+    <div class="body">
+      <p>Bonjour <strong>{{ user.first_name }}</strong>,</p>
+      <p>L'événement <strong>"{{ event.title }}"</strong> commence dans moins de 24 heures !</p>
+      <div class="info-box">
+        <p><strong>Date :</strong> {{ event.start_date }}</p>
+        <p><strong>Lieu :</strong> {{ event.venue_name }}, {{ event.city }}</p>
+        <p><strong>Vos billets :</strong> {{ tickets|length }} billet(s)</p>
+      </div>
+      <p>N'oubliez pas de présenter votre QR code à l'entrée.</p>
+    </div>
+    <div class="footer">
+      © HotelMate — Plateforme de billetterie événementielle
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "nav.dashboard": "Tableau de bord",
+  "nav.events": "Événements",
+  "nav.workspace": "Espace de travail",
+  "nav.wallet": "Wallet",
+  "nav.organizer": "Organisateur",
+  "nav.admin": "Administration",
+  "auth.login_title": "Connexion",
+  "auth.email": "Email",
+  "auth.password": "Mot de passe",
+  "auth.remember_me": "Se souvenir de moi",
+  "auth.sign_in": "Se connecter",
+  "auth.invalid_credentials": "Email ou mot de passe incorrect.",
+  "cart.title": "Panier",
+  "cart.checkout": "Passer à la caisse",
+  "event.free": "GRATUIT",
+  "event.view_details": "Voir détails"
+}

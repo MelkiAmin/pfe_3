@@ -1,0 +1,18 @@
+{
+  "nav.dashboard": "Dashboard",
+  "nav.events": "Events",
+  "nav.workspace": "Workspace",
+  "nav.wallet": "Wallet",
+  "nav.organizer": "Organizer",
+  "nav.admin": "Admin",
+  "auth.login_title": "Sign in",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.remember_me": "Remember me",
+  "auth.sign_in": "Sign in",
+  "auth.invalid_credentials": "Incorrect email or password.",
+  "cart.title": "Cart",
+  "cart.checkout": "Checkout",
+  "event.free": "FREE",
+  "event.view_details": "View details"
+}
