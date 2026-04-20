@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { apiClient, authSession } from '@/services/http/axios'
 
-type UserRole = 'user' | 'attendee' | 'organizer' | 'admin'
+type UserRole = 'attendee' | 'organizer' | 'admin'
 
 type AuthUser = {
   id: number
@@ -92,7 +92,16 @@ export const useAuthStore = defineStore('auth', {
         return '/organizer/dashboard'
       if (safeRole === 'admin')
         return '/admin/dashboard'
-      return '/dashboard/wallet'
+      return '/'
+    },
+
+    roleLabel(role?: UserRole) {
+      const safeRole = role || this.role
+      if (safeRole === 'organizer')
+        return 'Organisateur'
+      if (safeRole === 'admin')
+        return 'Admin'
+      return 'Utilisateur'
     },
   },
 })

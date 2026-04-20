@@ -1,5 +1,7 @@
 import { $api } from '@/utils/api'
+import { unwrapListResponse } from './list-response'
 import type { OrganizerDashboard, OrganizerProfile } from './types'
+import type { ListResponse } from './list-response'
 
 export type OrganizerProfilePayload = {
   organization_name?: string
@@ -22,7 +24,7 @@ export const organizerApi = {
   },
 
   listVerified() {
-    return $api<OrganizerProfile[]>('/organizer/list/')
+    return $api<ListResponse<OrganizerProfile>>('/organizer/list/').then(unwrapListResponse)
   },
 
   getDashboard() {

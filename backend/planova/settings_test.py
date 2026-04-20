@@ -1,6 +1,8 @@
 from .settings import *  # noqa: F401,F403
 
 
+DEBUG = True
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -13,9 +15,19 @@ PASSWORD_HASHERS = [
 ]
 
 MEDIA_ROOT = BASE_DIR / 'test_media'
+STATIC_ROOT = BASE_DIR / 'test_staticfiles'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'hotelmate-test-cache',
+    }
+}
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'cache+memory://'
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False

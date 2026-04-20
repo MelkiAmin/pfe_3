@@ -30,7 +30,7 @@ def event(db, organizer, category):
         organizer=organizer, category=category,
         title='Summer Fest', slug='summer-fest',
         description='Big festival',
-        status=Event.Status.PUBLISHED,
+        status=Event.Status.APPROVED,
         start_date='2026-07-15T14:00:00Z',
         end_date='2026-07-15T23:00:00Z',
         max_capacity=500,

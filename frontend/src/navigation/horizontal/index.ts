@@ -11,7 +11,7 @@ export default [
   },
   {
     title: 'nav.wallet',
-    to: '/dashboard/wallet',
+    to: '/wallet',
     icon: { icon: 'tabler-wallet' },
   },
   {

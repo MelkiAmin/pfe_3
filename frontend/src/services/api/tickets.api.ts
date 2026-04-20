@@ -1,5 +1,7 @@
 import { $api } from '@/utils/api'
+import { unwrapListResponse } from './list-response'
 import type { Ticket, TicketStatus, TicketType } from './types'
+import type { ListResponse } from './list-response'
 
 export type TicketTypePayload = {
   event: number
@@ -25,7 +27,7 @@ export type TicketPayload = {
 
 export const ticketsApi = {
   listTicketTypes(params?: { event?: number }) {
-    return $api<TicketType[]>('/tickets/types/', { query: params })
+    return $api<ListResponse<TicketType>>('/tickets/types/', { query: params }).then(unwrapListResponse)
   },
 
   getTicketType(ticketTypeId: number | string) {
@@ -51,7 +53,7 @@ export const ticketsApi = {
   },
 
   listTickets(params?: TicketListParams) {
-    return $api<Ticket[]>('/tickets/', { query: params })
+    return $api<ListResponse<Ticket>>('/tickets/', { query: params }).then(unwrapListResponse)
   },
 
   getTicket(ticketId: number | string) {

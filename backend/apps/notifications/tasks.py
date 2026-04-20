@@ -122,11 +122,12 @@ def send_event_reminder_email(self, user_id, event_id, ticket_ids):
         context=context,
     )
 
+
 @shared_task
 def send_event_cancellation_email(user_email, event_title):
     send_sendgrid_email(
         to_email=user_email,
-        subject=f'Event Cancelled – {event_title}',
+        subject=f'Event Cancelled - {event_title}',
         text_content=f'"{event_title}" has been cancelled. A refund will be processed shortly.',
     )
 
@@ -141,7 +142,7 @@ def queue_event_reminder_emails():
     reminder_window_end = timezone.now() + timedelta(hours=25)
 
     events = Event.objects.filter(
-        status=Event.Status.PUBLISHED,
+        status=Event.Status.APPROVED,
         start_date__gte=reminder_window_start,
         start_date__lte=reminder_window_end,
     )
@@ -160,7 +161,7 @@ def queue_event_reminder_emails():
         for ticket in tickets:
             attendee_ticket_map.setdefault(ticket.attendee_id, []).append(ticket)
 
-        for attendee_id, attendee_tickets in attendee_ticket_map.items():
+        for attendee_tickets in attendee_ticket_map.values():
             attendee = attendee_tickets[0].attendee
             reminder_key = f'event-reminder:{event.id}:{attendee.id}'
             already_sent = Notification.objects.filter(
@@ -181,7 +182,7 @@ def queue_event_reminder_emails():
                 recipient=attendee,
                 notification_type=Notification.Type.EVENT_REMINDER,
                 title=f'Reminder: {event.title} starts soon',
-                message=f'Don\'t forget, {event.title} starts on {event.start_date}.',
+                message=f"Don't forget, {event.title} starts on {event.start_date}.",
                 data={
                     'event_id': event.id,
                     'ticket_ids': [ticket.id for ticket in attendee_tickets],
@@ -192,6 +193,7 @@ def queue_event_reminder_emails():
 
 def create_notification(recipient, notification_type, title, message, data=None):
     from .models import Notification
+
     return Notification.objects.create(
         recipient=recipient,
         notification_type=notification_type,
@@ -201,8 +203,7 @@ def create_notification(recipient, notification_type, title, message, data=None)
     )
 
 
-# ─── SMS via Twilio (opt-in) ─────────────────────────────────────────────────
-
+# SMS via Twilio (opt-in)
 def send_sms(to_number: str, message: str) -> bool:
     """
     Send an SMS via Twilio. Requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
@@ -210,21 +211,24 @@ def send_sms(to_number: str, message: str) -> bool:
     Falls back silently if credentials are missing (dev/test mode).
     """
     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-    auth_token  = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
     from_number = getattr(settings, 'TWILIO_FROM_NUMBER', '')
 
     if not all([account_sid, auth_token, from_number]):
         import logging
-        logging.getLogger(__name__).debug('Twilio not configured — SMS skipped: %s', message)
+
+        logging.getLogger(__name__).debug('Twilio not configured - SMS skipped: %s', message)
         return False
 
     try:
         from twilio.rest import Client  # type: ignore
+
         client = Client(account_sid, auth_token)
         client.messages.create(body=message, from_=from_number, to=to_number)
         return True
     except Exception as exc:
         import logging
+
         logging.getLogger(__name__).error('Twilio SMS error: %s', exc)
         return False
 
@@ -232,12 +236,12 @@ def send_sms(to_number: str, message: str) -> bool:
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=2)
 def send_ticket_purchase_sms(self, phone: str, event_title: str, ticket_count: int):
     """Send SMS confirmation after ticket purchase."""
-    msg = f'HotelMate: You have {ticket_count} ticket(s) for "{event_title}". Enjoy the event!'
+    msg = f'Planova: You have {ticket_count} ticket(s) for "{event_title}". Enjoy the event!'
     send_sms(phone, msg)
 
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=2)
 def send_event_reminder_sms(self, phone: str, event_title: str, start_date: str):
     """Send SMS reminder 24h before event."""
-    msg = f'HotelMate Reminder: "{event_title}" starts tomorrow at {start_date}. See you there!'
+    msg = f'Planova Reminder: "{event_title}" starts tomorrow at {start_date}. See you there!'
     send_sms(phone, msg)

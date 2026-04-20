@@ -6,7 +6,7 @@ Détails de la commande :
 - Montant payé : {{ payment.amount }} {{ payment.currency }}
 - Nombre de billets : {{ ticket_count }}
 
-Vos billets sont disponibles dans votre espace personnel sur HotelMate.
+Vos billets sont disponibles dans votre espace personnel sur Planova.
 
 À bientôt,
-L'équipe HotelMate
+L'équipe Planova

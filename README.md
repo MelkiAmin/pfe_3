@@ -1,4 +1,4 @@
-# 🎟️ HotelMate — Système de Réservation de Billets d'Événements
+# 🎟️ Planova — Système de Réservation de Billets d'Événements
 
 **Version:** 2.0 | **Auteur:** MEHDI SELLAMI — SOTETEL | **Date:** 2026
 

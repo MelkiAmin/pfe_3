@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import RatingStars from '@/components/common/RatingStars.vue'
+import AppSelect from '@/@core/components/app-form-elements/AppSelect.vue'
+import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
 import LazyImage from '@/components/common/LazyImage.vue'
-import { fakeEvents } from '@/data/fake-events'
 import { eventsApi, ticketsApi } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import type { EventDetail, TicketType } from '@/services/api'
 
@@ -14,6 +15,7 @@ definePage({
 })
 
 const route = useRoute()
+const authStore = useAuthStore()
 const cartStore = useCartStore()
 
 const eventData = ref<EventDetail | null>(null)
@@ -21,139 +23,35 @@ const ticketTypes = ref<TicketType[]>([])
 const selectedTicketTypeId = ref<number | null>(null)
 const quantity = ref(1)
 const loading = ref(true)
-const availability = ref('')
 const errorMessage = ref('')
+const successMessage = ref('')
 
-const speakers = ref([
-  { name: 'Mehdi Sellami', role: 'Founder', topic: 'Event strategy at scale' },
-  { name: 'Amina Ben Ali', role: 'Product Lead', topic: 'From booking to check-in' },
-])
-
-const timeSlots = ref([
-  { time: '09:00', title: 'Opening keynote' },
-  { time: '11:00', title: 'Technical workshop' },
-  { time: '14:00', title: 'Networking session' },
-])
-
-const selectedTicket = computed(() =>
-  ticketTypes.value.find(ticket => ticket.id === selectedTicketTypeId.value))
-
-const refreshAvailability = async () => {
-  if (!eventData.value)
-    return
-  const latest = await ticketsApi.listTicketTypes({ event: eventData.value.id })
-  ticketTypes.value = latest
-  const ticket = selectedTicket.value
-  availability.value = ticket
-    ? `${ticket.available_quantity} restant(s)`
-    : ''
-}
+const selectedTicket = computed(() => ticketTypes.value.find(ticket => ticket.id === selectedTicketTypeId.value))
+const availableTickets = computed(() => selectedTicket.value?.available_quantity || 0)
+const currentPrice = computed(() => Number(selectedTicket.value?.price || 0))
+const estimatedTotal = computed(() => currentPrice.value * quantity.value)
+const canAddToBasket = computed(() =>
+  authStore.role === 'attendee'
+  && Boolean(selectedTicket.value)
+  && availableTickets.value >= quantity.value
+  && quantity.value > 0)
 
 const loadPage = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const routeParam = String(route.params.slug || '')
-    const slug = routeParam.trim()
-    const idMatch = slug.match(/^id-(\d+)$/)
-    const forcedId = idMatch ? Number(idMatch[1]) : null
-    let found = null as null | { id: number, slug: string, title: string, description?: string, cover_image?: string | null, category?: any, event_type?: any, status?: any, venue_name?: string, address?: string, city?: string, country?: string, online_url?: string, start_date?: string, end_date?: string, max_capacity?: number | null, is_free?: boolean, tickets_sold?: number, is_sold_out?: boolean, average_rating?: number, reviews_count?: number }
-
-    if (forcedId && forcedId < 9000) {
-      eventData.value = await eventsApi.getById(forcedId)
-      ticketTypes.value = await ticketsApi.listTicketTypes({ event: forcedId })
-      selectedTicketTypeId.value = ticketTypes.value[0]?.id || null
-      await refreshAvailability()
-      return
-    }
-
-    try {
-      const events = await eventsApi.list()
-      found = events.find((event) => {
-        if (forcedId)
-          return event.id === forcedId
-
-        return event.slug === slug
-      }) || null
-    }
-    catch {
-      found = null
-    }
-
-    if (!found)
-      found = fakeEvents.find(event => event.slug === slug) || null
+    const slug = String(route.params.slug || '').trim()
+    const events = await eventsApi.list({ status: 'approved' })
+    const found = events.find(event => event.slug === slug || `id-${event.id}` === slug)
 
     if (!found) {
       errorMessage.value = 'Event not found.'
       return
     }
 
-    if (found.id < 9000) {
-      eventData.value = await eventsApi.getById(found.id)
-      ticketTypes.value = await ticketsApi.listTicketTypes({ event: found.id })
-      selectedTicketTypeId.value = ticketTypes.value[0]?.id || null
-      await refreshAvailability()
-      return
-    }
-
-    eventData.value = {
-      id: found.id,
-      organizer: {
-        id: 0,
-        email: 'demo@planova.local',
-        first_name: 'Demo',
-        last_name: 'Organizer',
-        full_name: found.title,
-        role: 'organizer',
-        avatar: null,
-        phone: '',
-        is_email_verified: true,
-        created_at: new Date().toISOString(),
-      },
-      category: found.category || null,
-      title: found.title,
-      slug: found.slug,
-      description: found.description || 'Event details preview (fake data mode).',
-      cover_image: found.cover_image || null,
-      event_type: found.event_type || 'in_person',
-      status: found.status || 'published',
-      venue_name: found.venue_name || 'Main Venue',
-      address: found.address || '',
-      city: found.city || '',
-      country: found.country || '',
-      online_url: found.online_url || '',
-      start_date: found.start_date || new Date().toISOString(),
-      end_date: found.end_date || new Date().toISOString(),
-      max_capacity: found.max_capacity || 500,
-      is_free: Boolean(found.is_free),
-      tags: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      tickets_sold: Number(found.tickets_sold || 0),
-      is_sold_out: Boolean(found.is_sold_out),
-      average_rating: Number(found.average_rating || 0),
-      reviews_count: Number(found.reviews_count || 0),
-    }
-
-    ticketTypes.value = [
-      {
-        id: 1,
-        event: found.id,
-        name: found.is_free ? 'Free Pass' : 'Standard',
-        description: 'Fake ticket for preview mode',
-        price: found.is_free ? '0' : '49',
-        quantity: 500,
-        quantity_sold: Number(found.tickets_sold || 0),
-        available_quantity: found.is_sold_out ? 0 : 100,
-        is_available: !found.is_sold_out,
-        sale_start: null,
-        sale_end: null,
-      },
-    ]
+    eventData.value = await eventsApi.getById(found.id)
+    ticketTypes.value = await ticketsApi.listTicketTypes({ event: found.id })
     selectedTicketTypeId.value = ticketTypes.value[0]?.id || null
-    availability.value = ticketTypes.value[0]?.available_quantity
-      ? `${ticketTypes.value[0].available_quantity} restant(s)`
-      : 'Complet'
   }
   catch {
     errorMessage.value = 'Unable to load event details.'
@@ -164,7 +62,7 @@ const loadPage = async () => {
 }
 
 const addToCart = () => {
-  if (!eventData.value || !selectedTicket.value)
+  if (!eventData.value || !selectedTicket.value || !canAddToBasket.value)
     return
 
   cartStore.addItem({
@@ -176,22 +74,16 @@ const addToCart = () => {
     quantity: quantity.value,
     availableQuantity: selectedTicket.value.available_quantity,
   })
+
+  successMessage.value = `${quantity.value} billet(s) ajouté(s) au panier.`
 }
 
-watch(selectedTicketTypeId, refreshAvailability)
+watch(selectedTicketTypeId, () => {
+  quantity.value = 1
+  successMessage.value = ''
+})
+
 onMounted(loadPage)
-
-let pollInterval: number | undefined
-onMounted(() => {
-  pollInterval = window.setInterval(() => {
-    refreshAvailability().catch(() => {})
-  }, 15000)
-})
-
-onBeforeUnmount(() => {
-  if (pollInterval)
-    window.clearInterval(pollInterval)
-})
 </script>
 
 <template>
@@ -203,104 +95,134 @@ onBeforeUnmount(() => {
   >
     {{ errorMessage }}
   </VAlert>
+
   <div v-if="loading">
     <VSkeletonLoader type="image, article, list-item-two-line@3" />
   </div>
-  <div v-else-if="eventData">
-    <VRow>
-      <VCol
-        cols="12"
-        md="8"
-      >
+
+  <div
+    v-else-if="eventData"
+    class="page-shell"
+  >
+    <section class="page-hero event-hero">
+      <div class="event-hero__cover">
         <LazyImage
           :src="eventData.cover_image"
-          :height="320"
+          :height="420"
           alt="cover"
         />
-        <VCard class="mt-6">
-          <VCardItem :title="eventData.title" />
-          <VCardText>
-            <p class="mb-4">
+      </div>
+
+      <div class="event-hero__copy">
+        <VChip
+          color="success"
+          variant="flat"
+          class="mb-4"
+        >
+          Approved
+        </VChip>
+        <h1 class="text-h2 mb-3">
+          {{ eventData.title }}
+        </h1>
+        <p class="text-body-1 text-medium-emphasis mb-4">
+          {{ eventData.description }}
+        </p>
+
+        <div class="soft-grid soft-grid--3">
+          <div class="info-tile">
+            <span class="text-medium-emphasis">Organisateur</span>
+            <strong>{{ eventData.organizer.full_name }}</strong>
+          </div>
+          <div class="info-tile">
+            <span class="text-medium-emphasis">Lieu</span>
+            <strong>{{ eventData.city || eventData.venue_name || 'Online' }}</strong>
+          </div>
+          <div class="info-tile">
+            <span class="text-medium-emphasis">Tickets disponibles</span>
+            <strong>{{ availableTickets }}</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <VAlert
+      v-if="successMessage"
+      type="success"
+      variant="tonal"
+      closable
+      @click:close="successMessage = ''"
+    >
+      {{ successMessage }}
+    </VAlert>
+
+    <VRow>
+      <VCol cols="12" lg="8">
+        <VCard class="section-card">
+          <VCardText class="pa-6 pa-md-8">
+            <p class="page-kicker">
+              Event overview
+            </p>
+            <h3 class="text-h4 mb-3">
+              What to expect
+            </h3>
+            <p class="text-medium-emphasis mb-0">
               {{ eventData.description }}
             </p>
-            <div class="d-flex align-center gap-4 mb-4">
-              <RatingStars
-                :model-value="eventData.average_rating"
-                readonly
-              />
-              <span class="text-body-2">{{ eventData.reviews_count }} avis</span>
-            </div>
-
-            <h5 class="text-h5 mb-2">
-              Speakers
-            </h5>
-            <VList lines="one">
-              <VListItem
-                v-for="speaker in speakers"
-                :key="speaker.name"
-                :title="speaker.name"
-                :subtitle="`${speaker.role} • ${speaker.topic}`"
-              />
-            </VList>
-
-            <h5 class="text-h5 mt-4 mb-2">
-              Time slots
-            </h5>
-            <VTimeline density="compact">
-              <VTimelineItem
-                v-for="slot in timeSlots"
-                :key="slot.time"
-                size="small"
-              >
-                <div class="text-subtitle-2">
-                  {{ slot.time }}
-                </div>
-                <div class="text-body-2">
-                  {{ slot.title }}
-                </div>
-              </VTimelineItem>
-            </VTimeline>
           </VCardText>
         </VCard>
       </VCol>
 
-      <VCol
-        cols="12"
-        md="4"
-      >
-        <VCard>
-          <VCardItem title="Réservation" />
-          <VCardText>
+      <VCol cols="12" lg="4">
+        <VCard class="section-card booking-card">
+          <VCardText class="pa-6">
+            <p class="page-kicker">
+              Reserve now
+            </p>
+            <h3 class="text-h4 mb-2">
+              {{ currentPrice.toFixed(2) }} EUR
+            </h3>
+            <p class="text-medium-emphasis mb-5">
+              Select your ticket type, choose quantity and add it to the basket.
+            </p>
+
             <AppSelect
               v-model="selectedTicketTypeId"
-              label="Catégorie ticket"
-              :items="ticketTypes.map(ticket => ({ title: `${ticket.name} (${ticket.price}€)`, value: ticket.id }))"
-            />
-            <AppTextField
-              v-model.number="quantity"
-              class="mt-3"
-              type="number"
-              min="1"
-              :max="selectedTicket?.available_quantity || 1"
-              label="Quantité"
+              label="Ticket type"
+              :items="ticketTypes.map(ticket => ({ title: `${ticket.name} · ${ticket.price} EUR`, value: ticket.id }))"
             />
 
-            <VAlert
-              class="mt-3"
-              type="info"
-              variant="tonal"
-            >
-              Disponibilité: {{ availability || 'N/A' }}
-            </VAlert>
+            <AppTextField
+              v-model.number="quantity"
+              class="mt-4"
+              type="number"
+              min="1"
+              :max="availableTickets || 1"
+              label="Quantity"
+            />
+
+            <div class="booking-summary mt-4">
+              <div class="d-flex justify-space-between mb-2">
+                <span>Available tickets</span>
+                <strong>{{ availableTickets }}</strong>
+              </div>
+              <div class="d-flex justify-space-between mb-2">
+                <span>Total</span>
+                <strong>{{ estimatedTotal.toFixed(2) }} EUR</strong>
+              </div>
+              <div class="text-medium-emphasis text-body-2">
+                {{ canAddToBasket ? 'Ready to add to basket' : 'Connect as utilisateur to reserve tickets' }}
+              </div>
+            </div>
 
             <VBtn
               class="mt-4"
               block
+              size="large"
               color="primary"
-              :disabled="!selectedTicket || selectedTicket.available_quantity < 1"
+              :disabled="!canAddToBasket"
               @click="addToCart"
             >
-              Ajouter au panier
+              Add to Basket
             </VBtn>
           </VCardText>
         </VCard>
@@ -308,3 +230,40 @@ onBeforeUnmount(() => {
     </VRow>
   </div>
 </template>
+
+<style scoped>
+.event-hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1.5rem;
+}
+
+.event-hero__cover {
+  overflow: hidden;
+  border-radius: 26px;
+}
+
+.event-hero__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.info-tile {
+  padding: 1rem;
+  border-radius: 22px;
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+
+.booking-summary {
+  padding: 1rem;
+  border-radius: 22px;
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
+@media (max-width: 1280px) {
+  .event-hero {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

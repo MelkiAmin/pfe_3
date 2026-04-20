@@ -1,9 +1,11 @@
 import { $api } from '@/utils/api'
+import { unwrapListResponse } from './list-response'
 import type { CheckoutSessionPayload, CheckoutSessionResponse, Payment } from './types'
+import type { ListResponse } from './list-response'
 
 export const paymentsApi = {
   listHistory() {
-    return $api<Payment[]>('/payments/history/')
+    return $api<ListResponse<Payment>>('/payments/history/').then(unwrapListResponse)
   },
 
   getPayment(paymentId: number | string) {

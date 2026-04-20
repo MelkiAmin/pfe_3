@@ -169,8 +169,8 @@ SIMPLE_JWT = {
 
 # ─── Swagger / OpenAPI ──────────────────────────────────────────────────────
 SPECTACULAR_SETTINGS = {
-    'TITLE':       'HotelMate API',
-    'DESCRIPTION': 'Complete API for HotelMate — Event Ticketing Platform (v2.0)',
+    'TITLE':       'Planova API',
+    'DESCRIPTION': 'Complete API for Planova — Event Ticketing Platform (v2.0)',
     'VERSION':     '2.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SWAGGER_UI_SETTINGS': {
@@ -241,4 +241,4 @@ else:
     }}
 
 # ─── Business logic ──────────────────────────────────────────────────────────
-PLATFORM_COMMISSION = float(os.environ.get('PLATFORM_COMMISSION', '0.90'))
+ORGANIZER_COMMISSION = float(os.environ.get('ORGANIZER_COMMISSION', '0.90'))

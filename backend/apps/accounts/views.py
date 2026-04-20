@@ -170,7 +170,7 @@ class TwoFactorSetupView(APIView):
             return Response({'detail': 'Password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
         secret = pyotp.random_base32()
         otp_auth_url = pyotp.TOTP(secret).provisioning_uri(
-            name=request.user.email, issuer_name='HotelMate'
+            name=request.user.email, issuer_name='Planova'
         )
         return Response({'secret': secret, 'otp_auth_url': otp_auth_url, 'manual_entry_key': secret})
 
@@ -236,7 +236,7 @@ class RequestEmailVerificationView(APIView):
             from apps.notifications.tasks import send_sendgrid_email
             send_sendgrid_email(
                 to_email=user.email,
-                subject='HotelMate — Verify your email',
+                subject='Planova — Verify your email',
                 text_content=f'Your verification code: {code}\n(Valid for 10 minutes.)',
             )
         except Exception:
@@ -283,7 +283,7 @@ class PasswordResetRequestView(APIView):
             from apps.notifications.tasks import send_sendgrid_email
             send_sendgrid_email(
                 to_email=email,
-                subject='HotelMate — Password Reset',
+                subject='Planova — Password Reset',
                 text_content=f'Your password reset code: {code}\n(Valid for 10 minutes.)',
             )
         except Exception:

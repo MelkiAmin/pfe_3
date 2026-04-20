@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, inline_serializer
 from rest_framework import serializers
@@ -26,8 +27,18 @@ ticket_check_in_response = inline_serializer(
     destroy=extend_schema(tags=['Tickets'], summary='Delete a ticket type'),
 )
 class TicketTypeViewSet(viewsets.ModelViewSet):
-    queryset = TicketType.objects.select_related('event').all()
     serializer_class = TicketTypeSerializer
+
+    def get_queryset(self):
+        qs = TicketType.objects.select_related('event').all()
+        user = self.request.user
+        if not user.is_authenticated:
+            return qs.filter(event__status='approved')
+        if user.role == 'admin':
+            return qs
+        if user.role == 'organizer':
+            return qs.filter(Q(event__organizer=user) | Q(event__status='approved')).distinct()
+        return qs.filter(event__status='approved')
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

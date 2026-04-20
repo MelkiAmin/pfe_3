@@ -43,7 +43,35 @@ defineExpose({
   fallbackHandle,
   resolveHandle,
 })
+
+onBeforeUnmount(() => {
+  clearInterval(interval.value)
+})
 </script>
 
 <template>
+  <Teleport to="body">
+    <div
+      v-show="showProgress"
+      class="app-loading-indicator"
+    >
+      <VProgressLinear
+        :model-value="progressValue"
+        :buffer-value="bufferValue"
+        color="primary"
+        height="3"
+        rounded="0"
+        stream
+      />
+    </div>
+  </Teleport>
+</template>
 
+<style scoped>
+.app-loading-indicator {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 9999;
+}
+</style>

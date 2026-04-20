@@ -1,38 +1,37 @@
 <script setup lang="ts">
 import { eventsApi, systemApi } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import type { EventListItem } from '@/services/api'
 
+const authStore = useAuthStore()
 const isLoading = ref(true)
 const errorMessage = ref('')
-const isTestingApi = ref(false)
 const healthStatus = ref<'idle' | 'ok' | 'error'>('idle')
 const backendTimestamp = ref('')
 const recentEvents = ref<EventListItem[]>([])
 
 const stats = computed(() => {
-  const publishedEvents = recentEvents.value.filter(event => event.status === 'published').length
-  const freeEvents = recentEvents.value.filter(event => event.is_free).length
+  const approvedEvents = recentEvents.value.filter(event => event.status === 'approved').length
   const soldOutEvents = recentEvents.value.filter(event => event.is_sold_out).length
 
   return [
-    { label: 'Total events', value: recentEvents.value.length, icon: 'tabler-calendar-event' },
-    { label: 'Published', value: publishedEvents, icon: 'tabler-badge-check' },
-    { label: 'Free events', value: freeEvents, icon: 'tabler-ticket' },
-    { label: 'Sold out', value: soldOutEvents, icon: 'tabler-ban' },
+    { label: 'Événements visibles', value: recentEvents.value.length, icon: 'tabler-ticket', color: 'primary' },
+    { label: 'Approuvés', value: approvedEvents, icon: 'tabler-circle-check', color: 'success' },
+    { label: 'Complet', value: soldOutEvents, icon: 'tabler-flame', color: 'warning' },
+    { label: 'Rôle actuel', value: authStore.roleLabel(), icon: 'tabler-user-shield', color: 'info' },
   ]
 })
 
 const fetchDashboardData = async () => {
   isLoading.value = true
   errorMessage.value = ''
-
   try {
     const [events, health] = await Promise.all([
       eventsApi.list({ ordering: '-created_at' }),
       systemApi.health(),
     ])
 
-    recentEvents.value = events.slice(0, 5)
+    recentEvents.value = events.slice(0, 6)
     healthStatus.value = health.status === 'ok' ? 'ok' : 'error'
     backendTimestamp.value = health.timestamp
   }
@@ -45,105 +44,89 @@ const fetchDashboardData = async () => {
   }
 }
 
-const runConnectionTest = async () => {
-  isTestingApi.value = true
-
-  try {
-    const response = await systemApi.health()
-    healthStatus.value = response.status === 'ok' ? 'ok' : 'error'
-    backendTimestamp.value = response.timestamp
-  }
-  catch {
-    healthStatus.value = 'error'
-  }
-  finally {
-    isTestingApi.value = false
-  }
-}
-
 onMounted(fetchDashboardData)
 </script>
 
 <template>
-  <div class="dashboard-page">
-    <VCard class="hero-card mb-6 overflow-hidden">
-      <VCardText class="pa-8 pa-md-10">
-        <div class="d-flex flex-wrap align-center justify-space-between gap-6">
-          <div class="hero-copy">
-            <p class="text-overline mb-2 text-white">
-              PLANOVA CONTROL CENTER
-            </p>
-            <h2 class="text-h3 text-white mb-2">
-              Build, publish, and track events from one place.
-            </h2>
-            <p class="text-body-1 text-white text-high-emphasis mb-6">
-              Your frontend is now fully connected to backend APIs and ready for production workflows.
-            </p>
-            <div class="d-flex flex-wrap gap-3">
-              <VBtn
-                color="white"
-                variant="flat"
-                to="/events"
-              >
-                Explore Events
-              </VBtn>
-              <VBtn
-                color="white"
-                variant="outlined"
-                :loading="isTestingApi"
-                @click="runConnectionTest"
-              >
-                Test API Connection
-              </VBtn>
-            </div>
-          </div>
+  <div class="page-shell">
+    <section class="page-hero dashboard-hero">
+      <div class="dashboard-hero__copy">
+        <p class="page-kicker">
+          Planova dashboard
+        </p>
+        <h1 class="text-h2 mb-3">
+          A professional control room for ticket booking and event validation
+        </h1>
+        <p class="text-medium-emphasis mb-5">
+          Navigate approved events, follow platform activity, and access role-based actions from a cleaner and more modern reservation interface.
+        </p>
 
-          <div class="status-chip-wrap">
-            <VChip
-              :color="healthStatus === 'ok' ? 'success' : healthStatus === 'error' ? 'error' : 'default'"
-              variant="flat"
-              size="large"
-            >
-              {{ healthStatus === 'ok' ? 'Backend Online' : healthStatus === 'error' ? 'Backend Error' : 'Status Unknown' }}
-            </VChip>
-            <p class="text-caption text-white mt-2 mb-0">
-              {{ backendTimestamp ? `Last sync: ${new Date(backendTimestamp).toLocaleString()}` : 'No successful sync yet.' }}
-            </p>
+        <div class="d-flex flex-wrap gap-3">
+          <VBtn
+            color="primary"
+            rounded="pill"
+            to="/events"
+          >
+            Explorer les événements
+          </VBtn>
+          <VBtn
+            variant="tonal"
+            rounded="pill"
+            to="/history"
+          >
+            Voir l’historique
+          </VBtn>
+        </div>
+      </div>
+
+      <div class="dashboard-hero__status">
+        <div class="status-card">
+          <div class="text-medium-emphasis mb-2">
+            API status
+          </div>
+          <VChip
+            :color="healthStatus === 'ok' ? 'success' : 'error'"
+            variant="flat"
+          >
+            {{ healthStatus === 'ok' ? 'Online' : 'Offline' }}
+          </VChip>
+          <div class="text-body-2 text-medium-emphasis mt-4">
+            {{ backendTimestamp ? `Last sync: ${new Date(backendTimestamp).toLocaleString()}` : 'No sync yet' }}
           </div>
         </div>
-      </VCardText>
-    </VCard>
+      </div>
+    </section>
 
     <VAlert
       v-if="errorMessage"
       type="error"
       variant="tonal"
-      class="mb-6"
     >
       {{ errorMessage }}
     </VAlert>
 
-    <VRow class="mb-2">
+    <VRow>
       <VCol
         v-for="item in stats"
         :key="item.label"
         cols="12"
-        sm="6"
-        lg="3"
+        md="6"
+        xl="3"
       >
-        <VCard>
-          <VCardText class="d-flex align-center justify-space-between">
+        <VCard class="metric-card">
+          <VCardText class="pa-6 d-flex align-center justify-space-between">
             <div>
-              <p class="text-body-2 text-medium-emphasis mb-1">
+              <div class="text-medium-emphasis mb-2">
                 {{ item.label }}
-              </p>
-              <h4 class="text-h4 mb-0">
+              </div>
+              <div class="text-h4">
                 {{ item.value }}
-              </h4>
+              </div>
             </div>
             <VAvatar
-              color="primary"
+              :color="item.color"
               variant="tonal"
+              size="54"
             >
               <VIcon :icon="item.icon" />
             </VAvatar>
@@ -152,83 +135,98 @@ onMounted(fetchDashboardData)
       </VCol>
     </VRow>
 
-    <VCard>
-      <VCardItem>
-        <VCardTitle>Recent Events</VCardTitle>
-        <template #append>
+    <VCard class="section-card">
+      <VCardText class="pa-6 pa-md-8">
+        <div class="d-flex justify-space-between align-center flex-wrap gap-3 mb-6">
+          <div>
+            <p class="page-kicker mb-2">
+              Latest events
+            </p>
+            <h2 class="text-h4 mb-0">
+              Recently added experiences
+            </h2>
+          </div>
+
           <VBtn
-            variant="text"
+            variant="tonal"
+            rounded="pill"
             to="/events"
           >
-            View all
+            Tout voir
           </VBtn>
-        </template>
-      </VCardItem>
+        </div>
 
-      <VDivider />
-
-      <VCardText>
-        <VSkeletonLoader
-          v-if="isLoading"
-          type="list-item-two-line@4"
-        />
-
-        <VList
-          v-else-if="recentEvents.length"
-          lines="two"
-        >
-          <VListItem
-            v-for="event in recentEvents"
-            :key="event.id"
-            :title="event.title"
-            :subtitle="`${event.city || 'Unknown city'} • ${new Date(event.start_date).toLocaleDateString()}`"
+        <VRow>
+          <VCol
+            v-if="isLoading"
+            cols="12"
           >
-            <template #prepend>
-              <VAvatar
-                color="secondary"
-                variant="tonal"
-              >
-                <VIcon icon="tabler-calendar-time" />
-              </VAvatar>
-            </template>
+            <VSkeletonLoader type="article@3" />
+          </VCol>
 
-            <template #append>
-              <VChip
-                size="small"
-                :color="event.status === 'published' ? 'success' : event.status === 'draft' ? 'warning' : 'default'"
-              >
-                {{ event.status }}
-              </VChip>
-            </template>
-          </VListItem>
-        </VList>
+          <VCol
+            v-for="event in recentEvents"
+            v-else
+            :key="event.id"
+            cols="12"
+            md="6"
+            xl="4"
+          >
+            <VSheet class="recent-event-tile">
+              <div class="d-flex align-start justify-space-between gap-3 mb-3">
+                <div>
+                  <div class="font-weight-bold mb-1">
+                    {{ event.title }}
+                  </div>
+                  <div class="text-body-2 text-medium-emphasis">
+                    {{ event.city || 'Online' }}
+                  </div>
+                </div>
+                <VChip
+                  size="small"
+                  :color="event.status === 'approved' ? 'success' : 'warning'"
+                  variant="tonal"
+                >
+                  {{ event.status }}
+                </VChip>
+              </div>
 
-        <VEmptyState
-          v-else
-          headline="No events yet"
-          text="Create your first event to see data here."
-          icon="tabler-calendar-plus"
-        />
+              <div class="text-body-2 text-medium-emphasis mb-4">
+                {{ new Date(event.start_date).toLocaleString() }}
+              </div>
+
+              <VBtn
+                variant="text"
+                :to="`/events/${event.slug}`"
+              >
+                Consulter
+              </VBtn>
+            </VSheet>
+          </VCol>
+        </VRow>
       </VCardText>
     </VCard>
   </div>
 </template>
 
-<style scoped lang="scss">
-.dashboard-page {
-  .hero-card {
-    background:
-      radial-gradient(circle at 85% 20%, rgb(255 255 255 / 20%), transparent 35%),
-      linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-info)) 100%);
-  }
+<style scoped>
+.dashboard-hero {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1.5rem;
+}
 
-  .hero-copy {
-    max-width: 720px;
-  }
+.status-card,
+.recent-event-tile {
+  padding: 1.2rem;
+  border-radius: 24px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgba(var(--v-theme-surface), 0.8);
+}
 
-  .status-chip-wrap {
-    min-width: 220px;
-    text-align: end;
+@media (max-width: 1200px) {
+  .dashboard-hero {
+    grid-template-columns: 1fr;
   }
 }
 </style>

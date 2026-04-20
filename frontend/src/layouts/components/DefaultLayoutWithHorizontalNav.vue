@@ -1,18 +1,24 @@
 <script lang="ts" setup>
-import navItems from '@/navigation/horizontal'
-
-import { themeConfig } from '@themeConfig'
-
-import Footer from '@/layouts/components/Footer.vue'
-import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
-import UserProfile from '@/layouts/components/UserProfile.vue'
-import FloatingCart from '@/components/cart/FloatingCart.vue'
-import MobileBottomNav from '@/components/navigation/MobileBottomNav.vue'
-import NavBarI18n from '@core/components/I18n.vue'
-import { HorizontalNavLayout } from '@layouts'
-import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
+defineProps<{
+  navItems?: unknown[]
+}>()
 </script>
 
 <template>
-  <HorizontalNavLayout :nav-items="navItems">
+  <div class="default-layout-shell">
+    <main class="default-layout-content">
+      <slot />
+    </main>
+  </div>
+</template>
 
+<style lang="scss" scoped>
+.default-layout-shell {
+  min-height: 100vh;
+  background: rgb(var(--v-theme-surface));
+}
+
+.default-layout-content {
+  padding: 1.5rem;
+}
+</style>

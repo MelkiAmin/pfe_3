@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
+
 definePage({ meta: { public: true } })
 
 const code = ref('')

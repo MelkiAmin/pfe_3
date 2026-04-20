@@ -1,5 +1,6 @@
 import pyotp
 import pytest
+from apps.accounts.models import User
 
 
 @pytest.mark.django_db
@@ -87,3 +88,26 @@ def test_two_factor_setup_verify_disable_flow(api_client, user_factory, auth_hea
 
     assert disable_response.status_code == 200
     assert disable_response.data['is_2fa_enabled'] is False
+
+
+@pytest.mark.django_db
+def test_default_accounts_exist_and_login(api_client):
+    admin = User.objects.get(email='admin@planova.com')
+    organizer = User.objects.get(email='organisateur@planova.com')
+    attendee = User.objects.get(email='user@planova.com')
+
+    assert admin.role == User.Role.ADMIN
+    assert organizer.role == User.Role.ORGANIZER
+    assert attendee.role == User.Role.ATTENDEE
+    assert admin.check_password('admin123')
+    assert organizer.check_password('org123')
+    assert attendee.check_password('user123')
+
+    response = api_client.post(
+        '/api/auth/login/',
+        {'email': 'admin@planova.com', 'password': 'admin123'},
+        format='json',
+    )
+
+    assert response.status_code == 200
+    assert response.data['user']['role'] == 'admin'

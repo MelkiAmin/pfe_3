@@ -17,8 +17,9 @@ class Category(models.Model):
 
 class Event(models.Model):
     class Status(models.TextChoices):
-        DRAFT = 'draft', 'Draft'
-        PUBLISHED = 'published', 'Published'
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
         CANCELLED = 'cancelled', 'Cancelled'
         COMPLETED = 'completed', 'Completed'
 
@@ -38,7 +39,7 @@ class Event(models.Model):
     description = models.TextField()
     cover_image = models.ImageField(upload_to='events/covers/', null=True, blank=True)
     event_type = models.CharField(max_length=20, choices=EventType.choices, default=EventType.IN_PERSON)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     venue_name = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=500, blank=True)
     city = models.CharField(max_length=100, blank=True)

@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
+import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
+
 type Column<T> = {
   key: keyof T | string
   title: string

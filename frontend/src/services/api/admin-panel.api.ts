@@ -1,5 +1,7 @@
 import { $api } from '@/utils/api'
+import { unwrapListResponse } from './list-response'
 import type { AdminDashboardStats, AuthUser, EventDetail, EventListItem, EventPayload } from './types'
+import type { ListResponse } from './list-response'
 
 export type AdminUserListParams = {
   search?: string
@@ -13,7 +15,7 @@ export const adminPanelApi = {
   },
 
   listUsers(params?: AdminUserListParams) {
-    return $api<AuthUser[]>('/admin-panel/users/', { query: params })
+    return $api<ListResponse<AuthUser>>('/admin-panel/users/', { query: params }).then(unwrapListResponse)
   },
 
   getUser(userId: number | string) {
@@ -33,8 +35,8 @@ export const adminPanelApi = {
     })
   },
 
-  listEvents() {
-    return $api<EventListItem[]>('/admin-panel/events/')
+  listEvents(params?: { status?: string }) {
+    return $api<ListResponse<EventListItem>>('/admin-panel/events/', { query: params }).then(unwrapListResponse)
   },
 
   getEvent(eventId: number | string) {
@@ -51,6 +53,13 @@ export const adminPanelApi = {
   removeEvent(eventId: number | string) {
     return $api<void>(`/admin-panel/events/${eventId}/`, {
       method: 'DELETE',
+    })
+  },
+
+  moderateEvent(eventId: number | string, payload: { action: 'approve' | 'reject'; reason?: string }) {
+    return $api<EventDetail>(`/admin-panel/events/${eventId}/moderate/`, {
+      method: 'POST',
+      body: payload,
     })
   },
 }

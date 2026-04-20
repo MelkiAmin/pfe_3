@@ -5,13 +5,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: hotelmate_db
-      POSTGRES_USER: hotelmate
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-hotelmate_secret}
+      POSTGRES_DB: planova_db
+      POSTGRES_USER: planova
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-planova_secret}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hotelmate -d hotelmate_db"]
+      test: ["CMD-SHELL", "pg_isready -U planova -d planova_db"]
       interval: 10s
       timeout: 5s
       retries: 5

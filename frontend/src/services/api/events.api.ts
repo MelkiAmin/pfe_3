@@ -1,4 +1,5 @@
 import { $api } from '@/utils/api'
+import { unwrapListResponse } from './list-response'
 import type {
   Category,
   EventDetail,
@@ -9,6 +10,7 @@ import type {
   EventType,
   FavoriteEvent,
 } from './types'
+import type { ListResponse } from './list-response'
 
 export type EventListParams = {
   status?: EventStatus
@@ -22,7 +24,7 @@ export type EventListParams = {
 
 export const eventsApi = {
   list(params?: EventListParams) {
-    return $api<EventListItem[]>('/events/', { query: params })
+    return $api<ListResponse<EventListItem>>('/events/', { query: params }).then(unwrapListResponse)
   },
 
   getById(eventId: number | string) {
@@ -48,7 +50,7 @@ export const eventsApi = {
   },
 
   listCategories() {
-    return $api<Category[]>('/events/categories/')
+    return $api<ListResponse<Category>>('/events/categories/').then(unwrapListResponse)
   },
 
   getCategory(categoryId: number | string) {
@@ -74,7 +76,7 @@ export const eventsApi = {
   },
 
   listFavorites() {
-    return $api<FavoriteEvent[]>('/events/favorites/')
+    return $api<ListResponse<FavoriteEvent>>('/events/favorites/').then(unwrapListResponse)
   },
 
   addFavorite(eventId: number) {
@@ -91,7 +93,7 @@ export const eventsApi = {
   },
 
   listReviews(params?: { event?: number }) {
-    return $api<EventReview[]>('/events/reviews/', { query: params })
+    return $api<ListResponse<EventReview>>('/events/reviews/', { query: params }).then(unwrapListResponse)
   },
 
   createReview(payload: { event: number; rating: number; comment?: string }) {

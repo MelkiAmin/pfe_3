@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import stripe
 from django.conf import settings
 from django.db import transaction
@@ -18,6 +20,7 @@ from .serializers import (
     WalletSerializer,
     TransactionSerializer,
     WithdrawalRequestSerializer,
+    RefundSerializer,
 )
 
 
@@ -120,7 +123,8 @@ def sync_payment_from_checkout_session(payment, session):
         # Credit organizer wallet
         organizer = ticket_type.event.organizer
         wallet, _ = Wallet.objects.select_for_update().get_or_create(user=organizer)
-        commission = payment.amount * settings.PLATFORM_COMMISSION if hasattr(settings, 'PLATFORM_COMMISSION') else payment.amount
+        commission_rate = Decimal(str(getattr(settings, 'ORGANIZER_COMMISSION', '1')))
+        commission = payment.amount * commission_rate
         wallet.balance += commission
         wallet.save(update_fields=['balance', 'updated_at'])
         Transaction.objects.create(

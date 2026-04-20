@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import AppSelect from '@/@core/components/app-form-elements/AppSelect.vue'
+import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
+import AppTextarea from '@/@core/components/app-form-elements/AppTextarea.vue'
 import { eventsApi } from '@/services/api'
 import type { Category, EventType } from '@/services/api'
 
 definePage({
   meta: {
     layout: 'default',
+    roles: ['organizer', 'admin'],
   },
 })
 
@@ -12,13 +16,13 @@ const router = useRouter()
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const categories = ref<Category[]>([])
+const coverPreview = ref('')
 
 const form = reactive({
   title: '',
   description: '',
   category: '',
   eventType: 'in_person' as EventType,
-  status: 'draft',
   venueName: '',
   address: '',
   city: '',
@@ -27,7 +31,10 @@ const form = reactive({
   startDate: '',
   endDate: '',
   maxCapacity: '',
+  ticketPrice: '',
+  ticketQuantity: '',
   isFree: false,
+  coverImage: null as File | null,
 })
 
 const eventTypeItems = [
@@ -36,22 +43,11 @@ const eventTypeItems = [
   { title: 'Hybrid', value: 'hybrid' },
 ]
 
-const eventStatusItems = [
-  { title: 'Draft', value: 'draft' },
-  { title: 'Published', value: 'published' },
-  { title: 'Cancelled', value: 'cancelled' },
-  { title: 'Completed', value: 'completed' },
-]
-
 const parseErrorMessage = (error: unknown) => {
   if (!(error instanceof Error))
     return 'Unable to create event. Please try again.'
 
   const maybeData = error as Error & { data?: Record<string, unknown> }
-  const detail = maybeData.data?.detail
-  if (typeof detail === 'string')
-    return detail
-
   if (maybeData.data && typeof maybeData.data === 'object') {
     const first = Object.values(maybeData.data)[0]
     if (typeof first === 'string')
@@ -72,28 +68,45 @@ const loadCategories = async () => {
   }
 }
 
+const onCoverSelected = (files: File[] | File | null) => {
+  const picked = Array.isArray(files) ? files[0] : files
+  form.coverImage = picked || null
+  coverPreview.value = picked ? URL.createObjectURL(picked) : ''
+}
+
 const createEvent = async () => {
   errorMessage.value = ''
   isSubmitting.value = true
 
   try {
-    await eventsApi.create({
-      title: form.title,
-      description: form.description,
-      category: form.category ? Number(form.category) : null,
-      event_type: form.eventType,
-      status: form.status as 'draft' | 'published' | 'cancelled' | 'completed',
-      venue_name: form.venueName,
-      address: form.address,
-      city: form.city,
-      country: form.country,
-      online_url: form.onlineUrl,
-      start_date: form.startDate,
-      end_date: form.endDate,
-      max_capacity: form.maxCapacity ? Number(form.maxCapacity) : null,
-      is_free: form.isFree,
-    })
+    const payload = new FormData()
+    payload.append('title', form.title)
+    payload.append('description', form.description)
+    payload.append('event_type', form.eventType)
+    payload.append('start_date', form.startDate)
+    payload.append('end_date', form.endDate)
+    payload.append('ticket_price', form.ticketPrice)
+    payload.append('ticket_quantity', form.ticketQuantity)
+    payload.append('is_free', String(form.isFree))
 
+    if (form.category)
+      payload.append('category', form.category)
+    if (form.coverImage)
+      payload.append('cover_image', form.coverImage)
+    if (form.venueName)
+      payload.append('venue_name', form.venueName)
+    if (form.address)
+      payload.append('address', form.address)
+    if (form.city)
+      payload.append('city', form.city)
+    if (form.country)
+      payload.append('country', form.country)
+    if (form.onlineUrl)
+      payload.append('online_url', form.onlineUrl)
+    if (form.maxCapacity)
+      payload.append('max_capacity', form.maxCapacity)
+
+    await eventsApi.create(payload)
     await router.replace('/events?created=1')
   }
   catch (error: unknown) {
@@ -108,14 +121,14 @@ onMounted(loadCategories)
 </script>
 
 <template>
-  <div>
-    <div class="d-flex flex-wrap align-center justify-space-between gap-4 mb-6">
+  <div class="event-create-page">
+    <div class="hero-card mb-6">
       <div>
-        <h3 class="text-h3 mb-1">
-          Create Event
+        <h3 class="text-h3 mb-2">
+          Submit a New Event
         </h3>
         <p class="text-medium-emphasis mb-0">
-          Publish a new event to your catalog.
+          Create a polished listing. Every submission is sent for admin validation before it goes live.
         </p>
       </div>
 
@@ -128,7 +141,7 @@ onMounted(loadCategories)
       </VBtn>
     </div>
 
-    <VCard>
+    <VCard class="form-card">
       <VCardText class="pa-6 pa-md-8">
         <VAlert
           v-if="errorMessage"
@@ -141,10 +154,7 @@ onMounted(loadCategories)
 
         <VForm @submit.prevent="createEvent">
           <VRow>
-            <VCol
-              cols="12"
-              md="8"
-            >
+            <VCol cols="12" md="8">
               <AppTextField
                 v-model="form.title"
                 label="Event title"
@@ -153,10 +163,7 @@ onMounted(loadCategories)
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="4"
-            >
+            <VCol cols="12" md="4">
               <AppSelect
                 v-model="form.category"
                 label="Category"
@@ -167,20 +174,45 @@ onMounted(loadCategories)
               />
             </VCol>
 
-            <VCol cols="12">
+            <VCol cols="12" md="7">
               <AppTextarea
                 v-model="form.description"
                 label="Description"
-                placeholder="Tell attendees what this event is about..."
-                rows="4"
+                rows="5"
                 required
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="3"
-            >
+            <VCol cols="12" md="5">
+              <VFileInput
+                accept="image/*"
+                label="Cover image"
+                prepend-icon="tabler-photo"
+                variant="outlined"
+                required
+                @update:model-value="onCoverSelected"
+              />
+
+              <VSheet
+                class="cover-preview mt-3"
+                rounded="xl"
+              >
+                <VImg
+                  v-if="coverPreview"
+                  :src="coverPreview"
+                  cover
+                  height="200"
+                />
+                <div
+                  v-else
+                  class="cover-preview__empty"
+                >
+                  Event cover preview
+                </div>
+              </VSheet>
+            </VCol>
+
+            <VCol cols="12" md="4">
               <AppSelect
                 v-model="form.eventType"
                 label="Event type"
@@ -188,21 +220,28 @@ onMounted(loadCategories)
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="3"
-            >
-              <AppSelect
-                v-model="form.status"
-                label="Status"
-                :items="eventStatusItems"
+            <VCol cols="12" md="4">
+              <AppTextField
+                v-model="form.ticketPrice"
+                label="Ticket price"
+                type="number"
+                min="0"
+                step="0.01"
+                required
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="3"
-            >
+            <VCol cols="12" md="4">
+              <AppTextField
+                v-model="form.ticketQuantity"
+                label="Number of tickets"
+                type="number"
+                min="1"
+                required
+              />
+            </VCol>
+
+            <VCol cols="12" md="6">
               <AppTextField
                 v-model="form.startDate"
                 label="Start date"
@@ -211,10 +250,7 @@ onMounted(loadCategories)
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="3"
-            >
+            <VCol cols="12" md="6">
               <AppTextField
                 v-model="form.endDate"
                 label="End date"
@@ -223,36 +259,24 @@ onMounted(loadCategories)
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="4"
-            >
+            <VCol cols="12" md="4">
               <AppTextField
                 v-model="form.venueName"
                 label="Venue name"
-                placeholder="Grand Hall"
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="4"
-            >
+            <VCol cols="12" md="4">
               <AppTextField
                 v-model="form.city"
                 label="City"
-                placeholder="San Francisco"
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="4"
-            >
+            <VCol cols="12" md="4">
               <AppTextField
                 v-model="form.country"
                 label="Country"
-                placeholder="United States"
               />
             </VCol>
 
@@ -260,31 +284,22 @@ onMounted(loadCategories)
               <AppTextField
                 v-model="form.address"
                 label="Address"
-                placeholder="123 Main Street"
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="6"
-            >
+            <VCol cols="12" md="6">
               <AppTextField
                 v-model="form.onlineUrl"
-                label="Online URL (optional)"
-                placeholder="https://meet.example.com/event"
+                label="Online URL"
               />
             </VCol>
 
-            <VCol
-              cols="12"
-              md="3"
-            >
+            <VCol cols="12" md="3">
               <AppTextField
                 v-model="form.maxCapacity"
                 label="Max capacity"
                 type="number"
                 min="1"
-                placeholder="500"
               />
             </VCol>
 
@@ -306,7 +321,7 @@ onMounted(loadCategories)
                   type="submit"
                   :loading="isSubmitting"
                 >
-                  Create Event
+                  Submit for Validation
                 </VBtn>
                 <VBtn
                   variant="tonal"
@@ -322,3 +337,34 @@ onMounted(loadCategories)
     </VCard>
   </div>
 </template>
+
+<style scoped>
+.hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.12), rgba(var(--v-theme-info), 0.08));
+}
+
+.form-card {
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+
+.cover-preview {
+  overflow: hidden;
+  min-height: 200px;
+  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.cover-preview__empty {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  color: rgba(var(--v-theme-on-surface), 0.58);
+}
+</style>

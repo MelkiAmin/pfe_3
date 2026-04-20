@@ -8,4 +8,4 @@ Lieu : {{ event.venue_name }} — {{ event.city }}
 Vous avez {{ tickets|length }} billet(s) pour cet événement. N'oubliez pas votre QR code !
 
 À bientôt,
-L'équipe HotelMate
+L'équipe Planova

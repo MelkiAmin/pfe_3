@@ -31,7 +31,7 @@ export type Category = {
   icon: string
 }
 
-export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed'
+export type EventStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed'
 export type EventType = 'in_person' | 'online' | 'hybrid'
 
 export type EventListItem = {
@@ -87,6 +87,8 @@ export type EventPayload = {
   title: string
   description: string
   cover_image?: File | null
+  ticket_price?: number | string
+  ticket_quantity?: number
   event_type?: EventType
   status?: EventStatus
   venue_name?: string
@@ -185,6 +187,9 @@ export type NotificationType =
   | 'event_reminder'
   | 'event_cancelled'
   | 'event_updated'
+  | 'event_submitted'
+  | 'event_approved'
+  | 'event_rejected'
   | 'payment_confirmed'
   | 'payment_failed'
   | 'general'

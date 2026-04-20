@@ -46,7 +46,7 @@ class TestOrganizerDashboard:
             title='Test Event',
             slug='test-event',
             description='A test event',
-            status=Event.Status.PUBLISHED,
+            status=Event.Status.APPROVED,
             start_date='2026-06-01T18:00:00Z',
             end_date='2026-06-01T22:00:00Z',
             max_capacity=100,

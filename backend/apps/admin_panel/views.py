@@ -170,7 +170,7 @@ class AdminDashboardView(APIView):
             'total_users':        User.objects.count(),
             'total_organizers':   User.objects.filter(role='organizer').count(),
             'total_events':       Event.objects.count(),
-            'published_events':   Event.objects.filter(status='published').count(),
+            'published_events':   Event.objects.filter(status=Event.Status.APPROVED).count(),
             'total_tickets_sold': Ticket.objects.filter(status='confirmed').count(),
             'total_revenue':      total_rev,
         })
@@ -204,7 +204,7 @@ class AdminSystemStatsView(APIView):
             'total_organizers':     User.objects.filter(role='organizer').count(),
             'total_attendees':      User.objects.filter(role='attendee').count(),
             'total_events':         Event.objects.count(),
-            'published_events':     Event.objects.filter(status='published').count(),
+            'published_events':     Event.objects.filter(status=Event.Status.APPROVED).count(),
             'total_tickets_sold':   Ticket.objects.filter(status__in=['confirmed', 'used']).count(),
             'total_revenue':        total_rev,
             'pending_withdrawals':  WithdrawalRequest.objects.filter(status='pending').count(),
@@ -263,9 +263,15 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
 # ─── Events ──────────────────────────────────────────────────────────────────
 
 class AdminEventListView(generics.ListAPIView):
-    queryset = Event.objects.select_related('organizer', 'category').all()
     serializer_class = EventListSerializer
     permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        qs = Event.objects.select_related('organizer', 'category').all()
+        status_value = self.request.query_params.get('status')
+        if status_value:
+            qs = qs.filter(status=status_value)
+        return qs
 
 
 @extend_schema_view(
@@ -306,13 +312,13 @@ class AdminEventModerationView(APIView):
         reason = request.data.get('reason', '')
 
         if action == 'approve':
-            event.status = Event.Status.PUBLISHED
+            event.status = Event.Status.APPROVED
             notif_msg  = f'Your event "{event.title}" has been approved and is now live!'
-            notif_type = Notification.Type.EVENT_UPDATED
+            notif_type = Notification.Type.EVENT_APPROVED
         elif action == 'reject':
-            event.status = Event.Status.DRAFT
+            event.status = Event.Status.REJECTED
             notif_msg  = f'Your event "{event.title}" was not approved. Reason: {reason or "N/A"}'
-            notif_type = Notification.Type.EVENT_CANCELLED
+            notif_type = Notification.Type.EVENT_REJECTED
         else:
             return Response({'detail': 'Invalid action. Use "approve" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
 

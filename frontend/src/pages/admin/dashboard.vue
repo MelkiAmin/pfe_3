@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppSelect from '@/@core/components/app-form-elements/AppSelect.vue'
+import AppTextarea from '@/@core/components/app-form-elements/AppTextarea.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { apiClient } from '@/services/http/axios'
 
@@ -15,14 +17,7 @@ const load = async () => {
   errorMessage.value = ''
   try {
     const { data } = await apiClient.get('/admin-panel/events/', { params: { status: statusFilter.value } })
-    const allEvents = Array.isArray(data) ? data : data.results || []
-    events.value = allEvents.filter((event: any) => {
-      if (statusFilter.value === 'approved')
-        return event.status === 'published'
-      if (statusFilter.value === 'rejected')
-        return event.status === 'cancelled'
-      return event.status === 'draft'
-    })
+    events.value = Array.isArray(data) ? data : data.results || []
   }
   catch (error: any) {
     events.value = []
@@ -35,8 +30,9 @@ const load = async () => {
 
 const verify = async (id: number, action: 'approved' | 'rejected', reason = '') => {
   try {
-    await apiClient.patch(`/admin-panel/events/${id}/`, {
-      status: action === 'approved' ? 'published' : 'cancelled',
+    await apiClient.post(`/admin-panel/events/${id}/moderate/`, {
+      action: action === 'approved' ? 'approve' : 'reject',
+      reason,
     })
     await load()
   }

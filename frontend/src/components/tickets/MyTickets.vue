@@ -1,26 +1,21 @@
 <script setup lang="ts">
+import type { Ticket } from '@/services/api'
 import { apiClient } from '@/services/http/axios'
 
-type TicketRecord = {
-  id: number
-  order_id: number
-  event_title: string
-  ticket_code: string
-  status: string
-  attendee_email: string
-}
-
-const tickets = ref<TicketRecord[]>([])
+const tickets = ref<Ticket[]>([])
 const loading = ref(true)
+const feedback = ref('')
 
 const fetchTickets = async () => {
   loading.value = true
+  feedback.value = ''
   try {
-    const { data } = await apiClient.get('/orders', { params: { status: 'paid' } })
+    const { data } = await apiClient.get('/tickets/')
     tickets.value = Array.isArray(data) ? data : data.results || []
   }
   catch {
     tickets.value = []
+    feedback.value = 'Impossible de charger vos billets pour le moment.'
   }
   finally {
     loading.value = false
@@ -30,19 +25,19 @@ const fetchTickets = async () => {
 const qrUrl = (code: string) =>
   `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(code)}`
 
-const downloadPdf = (ticket: TicketRecord) => {
-  const content = `Billet #${ticket.ticket_code}\nEvenement: ${ticket.event_title}\nCommande: ${ticket.order_id}`
+const downloadPdf = (ticket: Ticket) => {
+  const content = `Billet #${ticket.ticket_number}\nEvenement: ${ticket.event_title}\nStatut: ${ticket.status}`
   const blob = new Blob([content], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `ticket-${ticket.ticket_code}.pdf`
+  a.download = `ticket-${ticket.ticket_number}.pdf`
   a.click()
   URL.revokeObjectURL(url)
 }
 
-const sendByEmail = async (ticket: TicketRecord) => {
-  await apiClient.post(`/orders/${ticket.order_id}/send-ticket`, { ticket_id: ticket.id })
+const sendByEmail = (ticket: Ticket) => {
+  feedback.value = `L'email de confirmation pour ${ticket.event_title} est envoyee automatiquement apres paiement.`
 }
 
 onMounted(fetchTickets)
@@ -53,6 +48,16 @@ onMounted(fetchTickets)
     <VCardItem title="Mes billets" />
     <VDivider />
     <VCardText>
+      <VAlert
+        v-if="feedback"
+        type="info"
+        variant="tonal"
+        class="mb-4"
+        closable
+        @click:close="feedback = ''"
+      >
+        {{ feedback }}
+      </VAlert>
       <VSkeletonLoader
         v-if="loading"
         type="list-item-two-line@4"
@@ -65,17 +70,20 @@ onMounted(fetchTickets)
           md="6"
           lg="4"
         >
-          <VCard variant="outlined">
-            <VCardItem :title="ticket.event_title" />
+            <VCard variant="outlined">
+              <VCardItem :title="ticket.event_title" />
             <VCardText>
               <img
-                :src="qrUrl(ticket.ticket_code)"
+                :src="ticket.qr_code || qrUrl(ticket.ticket_number)"
                 alt="qr"
                 width="140"
                 height="140"
               >
               <p class="text-body-2 mt-3 mb-1">
-                Code: {{ ticket.ticket_code }}
+                Code: {{ ticket.ticket_number }}
+              </p>
+              <p class="text-body-2 mb-1">
+                Statut: {{ ticket.status }}
               </p>
               <div class="d-flex gap-2 mt-2">
                 <VBtn

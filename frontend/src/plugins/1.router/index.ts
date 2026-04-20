@@ -46,6 +46,7 @@ router.beforeEach(to => {
 
   const adminOnly = to.path.startsWith('/admin')
   const organizerOnly = to.path.startsWith('/organizer')
+  const allowedRoles = Array.isArray(to.meta.roles) ? to.meta.roles as string[] : null
 
   if (!accessToken && isAuthPage)
     return true
@@ -68,6 +69,9 @@ router.beforeEach(to => {
 
   if (organizerOnly && !['organizer', 'admin'].includes(role))
     return { path: '/' }
+
+  if (allowedRoles && !allowedRoles.includes(role))
+    return { path: authStore.dashboardRouteByRole(role as any) }
 })
 
 export { router }

@@ -32,7 +32,7 @@ def event(db, organizer, category):
         organizer=organizer, category=category,
         title='Tech Summit', slug='tech-summit',
         description='Annual tech summit',
-        status=Event.Status.DRAFT,
+        status=Event.Status.PENDING,
         start_date='2026-10-01T09:00:00Z',
         end_date='2026-10-01T18:00:00Z',
     )
@@ -68,7 +68,7 @@ class TestAdminEventModeration:
         )
         assert resp.status_code == status.HTTP_200_OK
         event.refresh_from_db()
-        assert event.status == Event.Status.PUBLISHED
+        assert event.status == Event.Status.APPROVED
 
     def test_reject_event_with_reason(self, api_client, admin, event):
         api_client.force_authenticate(user=admin)
@@ -78,7 +78,7 @@ class TestAdminEventModeration:
         )
         assert resp.status_code == status.HTTP_200_OK
         event.refresh_from_db()
-        assert event.status == Event.Status.DRAFT
+        assert event.status == Event.Status.REJECTED
 
     def test_invalid_action_returns_400(self, api_client, admin, event):
         api_client.force_authenticate(user=admin)

@@ -2,6 +2,12 @@
 import { useConfigStore } from '@core/stores/config'
 import { AppContentLayoutNav } from '@layouts/enums'
 import { switchToVerticalNavOnLtOverlayNavBreakpoint } from '@layouts/utils'
+import AppLoadingIndicator from '@/components/AppLoadingIndicator.vue'
+
+type LoadingIndicatorHandle = {
+  fallbackHandle: () => void
+  resolveHandle: () => void
+}
 
 const DefaultLayoutWithHorizontalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithHorizontalNav.vue'))
 const DefaultLayoutWithVerticalNav = defineAsyncComponent(() => import('./components/DefaultLayoutWithVerticalNav.vue'))
@@ -15,14 +21,17 @@ const { layoutAttrs, injectSkinClasses } = useSkins()
 injectSkinClasses()
 
 const isFallbackStateActive = ref(false)
-const refLoadingIndicator = ref<any>(null)
+const refLoadingIndicator = ref<LoadingIndicatorHandle | null>(null)
 
 watch([isFallbackStateActive, refLoadingIndicator], () => {
-  if (isFallbackStateActive.value && refLoadingIndicator.value)
-    refLoadingIndicator.value.fallbackHandle()
+  const indicator = refLoadingIndicator.value
 
-  if (!isFallbackStateActive.value && refLoadingIndicator.value)
-    refLoadingIndicator.value.resolveHandle()
+  if (isFallbackStateActive.value) {
+    indicator?.fallbackHandle?.()
+    return
+  }
+
+  indicator?.resolveHandle?.()
 }, { immediate: true })
 
 </script>

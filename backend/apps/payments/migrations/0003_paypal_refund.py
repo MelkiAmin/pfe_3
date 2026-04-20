@@ -25,16 +25,4 @@ class Migration(migrations.Migration):
             ],
             options={'db_table': 'paypal_orders', 'ordering': ['-created_at']},
         ),
-        migrations.CreateModel(
-            name='Refund',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True)),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('reason', models.TextField()),
-                ('provider_refund_id', models.CharField(blank=True, max_length=255)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('payment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='refund', to='payments.payment')),
-            ],
-            options={'db_table': 'refunds'},
-        ),
     ]

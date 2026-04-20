@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ErrorHeader from '@/components/ErrorHeader.vue'
 import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
 import misc404 from '@images/pages/404.png'
 import miscMaskDark from '@images/pages/misc-mask-dark.png'
@@ -19,7 +20,7 @@ definePage({
   <div class="misc-wrapper">
     <ErrorHeader
       status-code="404"
-      title="Page Not Found ⚠️"
+      title="Page Not Found"
       description="We couldn't find the page you are looking for."
     />
 
@@ -30,3 +31,23 @@ definePage({
       Back to Home
     </VBtn>
 
+    <div class="misc-avatar w-100 text-center">
+      <VImg
+        :src="misc404"
+        alt="404"
+        :max-width="780"
+        class="mx-auto"
+      />
+    </div>
+
+    <img
+      class="misc-footer-img d-none d-md-block"
+      :src="authThemeMask"
+      alt="mask"
+    >
+  </div>
+</template>
+
+<style lang="scss" scoped>
+@use "@core/scss/template/pages/misc.scss";
+</style>

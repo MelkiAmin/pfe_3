@@ -1,17 +1,27 @@
 <script lang="ts" setup>
+import AppLoadingIndicator from '@/components/AppLoadingIndicator.vue'
+
+type LoadingIndicatorHandle = {
+  fallbackHandle: () => void
+  resolveHandle: () => void
+}
+
 const { injectSkinClasses } = useSkins()
 
 injectSkinClasses()
 
 const isFallbackStateActive = ref(false)
-const refLoadingIndicator = ref<any>(null)
+const refLoadingIndicator = ref<LoadingIndicatorHandle | null>(null)
 
 watch([isFallbackStateActive, refLoadingIndicator], () => {
-  if (isFallbackStateActive.value && refLoadingIndicator.value)
-    refLoadingIndicator.value.fallbackHandle()
+  const indicator = refLoadingIndicator.value
 
-  if (!isFallbackStateActive.value && refLoadingIndicator.value)
-    refLoadingIndicator.value.resolveHandle()
+  if (isFallbackStateActive.value) {
+    indicator?.fallbackHandle?.()
+    return
+  }
+
+  indicator?.resolveHandle?.()
 }, { immediate: true })
 
 </script>

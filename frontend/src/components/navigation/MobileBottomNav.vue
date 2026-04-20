@@ -4,7 +4,7 @@ const route = useRoute()
 const items = [
   { to: '/', icon: 'tabler-home', label: 'Home' },
   { to: '/events', icon: 'tabler-calendar-event', label: 'Events' },
-  { to: '/dashboard/wallet', icon: 'tabler-wallet', label: 'Wallet' },
+  { to: '/wallet', icon: 'tabler-wallet', label: 'Wallet' },
   { to: '/organizer/dashboard', icon: 'tabler-chart-bar', label: 'Stats' },
 ]
 </script>

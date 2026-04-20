@@ -53,6 +53,7 @@ export const authSession = {
 }
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || '/api'
+const AUTH_ENDPOINT_PATTERN = /\/auth\/(login|register|logout|token\/refresh)\/?$/
 
 export const apiClient = axios.create({
   baseURL: apiBase,
@@ -60,11 +61,35 @@ export const apiClient = axios.create({
 })
 
 let isRefreshing = false
-let pendingRequests: ((token: string | null) => void)[] = []
+let pendingRequests: Array<{
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}> = []
 
-const flushQueue = (token: string | null) => {
-  pendingRequests.forEach(cb => cb(token))
+const flushQueue = (token: string) => {
+  pendingRequests.forEach(({ resolve }) => resolve(token))
   pendingRequests = []
+}
+
+const rejectQueue = (error: unknown) => {
+  pendingRequests.forEach(({ reject }) => reject(error))
+  pendingRequests = []
+}
+
+const isAuthEndpoint = (url?: string) =>
+  typeof url === 'string' && AUTH_ENDPOINT_PATTERN.test(url)
+
+const redirectToLogin = () => {
+  if (typeof window === 'undefined')
+    return
+
+  const { pathname, search, hash, origin } = window.location
+  if (pathname.endsWith('/login') || pathname.endsWith('/register'))
+    return
+
+  const loginUrl = new URL('login', new URL(import.meta.env.BASE_URL || '/', origin))
+  loginUrl.searchParams.set('redirect', `${pathname}${search}${hash}`)
+  window.location.replace(loginUrl.toString())
 }
 
 apiClient.interceptors.request.use(config => {
@@ -79,22 +104,28 @@ apiClient.interceptors.response.use(
   async error => {
     const originalRequest = error.config
     const status = error?.response?.status
+    const requestUrl = originalRequest?.url as string | undefined
 
-    if (status !== 401 || originalRequest?._retry)
+    if (status !== 401 || originalRequest?._retry || isAuthEndpoint(requestUrl))
       return Promise.reject(error)
 
     const { refresh } = authSession.getTokens()
     if (!refresh) {
       authSession.clear()
+      redirectToLogin()
       return Promise.reject(error)
     }
 
     if (isRefreshing) {
-      return new Promise(resolve => {
-        pendingRequests.push((token: string | null) => {
-          if (token)
+      return new Promise((resolve, reject) => {
+        pendingRequests.push({
+          resolve: (token: string) => {
+            originalRequest._retry = true
+            originalRequest.headers = originalRequest.headers || {}
             originalRequest.headers.Authorization = `Bearer ${token}`
-          resolve(apiClient(originalRequest))
+            resolve(apiClient(originalRequest))
+          },
+          reject,
         })
       })
     }
@@ -114,13 +145,15 @@ apiClient.interceptors.response.use(
         refresh: current.refresh || refresh,
       }, Boolean(localStorage.getItem(ACCESS_KEY)))
 
+      originalRequest.headers = originalRequest.headers || {}
       originalRequest.headers.Authorization = `Bearer ${access}`
       flushQueue(access)
       return apiClient(originalRequest)
     }
     catch (refreshError) {
-      flushQueue(null)
+      rejectQueue(refreshError)
       authSession.clear()
+      redirectToLogin()
       return Promise.reject(refreshError)
     }
     finally {

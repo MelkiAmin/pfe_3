@@ -3,6 +3,7 @@ from decimal import Decimal
 import itertools
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -89,7 +90,7 @@ def event_factory(db, user_factory):
             'title':       f'Event {ev_idx}',
             'slug':        f'event-{ev_idx}',
             'description': 'Test event description',
-            'status':      Event.Status.PUBLISHED,
+            'status':      Event.Status.APPROVED,
             'event_type':  Event.EventType.IN_PERSON,
             'start_date':  start_date,
             'end_date':    end_date,
@@ -136,3 +137,18 @@ def payment_factory(db):
         defaults.update(kwargs)
         return Payment.objects.create(**defaults)
     return create_payment
+
+
+@pytest.fixture
+def django_image():
+    return SimpleUploadedFile(
+        'cover.jpg',
+        (
+            b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00'
+            b'\xff\xdb\x00C\x00'
+            + b'\x08' * 64
+            + b'\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x03\x01"\x00\x02\x11\x01\x03\x11\x01'
+            + b'\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00?\x00\xd2\xcf \xff\xd9'
+        ),
+        content_type='image/jpeg',
+    )

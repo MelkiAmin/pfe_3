@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import Event, Category, Favorite, EventReview
 from apps.accounts.serializers import UserProfileSerializer
+from apps.accounts.models import User
+from apps.notifications.models import Notification
+from apps.notifications.tasks import create_notification
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,17 +40,63 @@ class EventDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class EventCreateUpdateSerializer(serializers.ModelSerializer):
+    ticket_price = serializers.DecimalField(max_digits=10, decimal_places=2, write_only=True, required=False)
+    ticket_quantity = serializers.IntegerField(min_value=1, write_only=True, required=False)
+
     class Meta:
         model = Event
         exclude = ['organizer', 'slug', 'created_at', 'updated_at']
 
+    def validate(self, attrs):
+        if self.instance is None:
+            required_fields = {
+                'cover_image': attrs.get('cover_image'),
+                'title': attrs.get('title'),
+                'description': attrs.get('description'),
+                'ticket_price': attrs.get('ticket_price'),
+                'ticket_quantity': attrs.get('ticket_quantity'),
+            }
+            missing = [field for field, value in required_fields.items() if value in [None, '', []]]
+            if missing:
+                raise serializers.ValidationError({
+                    field: 'This field is required.' for field in missing
+                })
+
+            attrs['status'] = Event.Status.PENDING
+
+        return super().validate(attrs)
+
     def create(self, validated_data):
         from django.utils.text import slugify
         import uuid
+        from apps.tickets.models import TicketType
+
+        ticket_price = validated_data.pop('ticket_price')
+        ticket_quantity = validated_data.pop('ticket_quantity')
         title = validated_data.get('title', '')
         validated_data['slug'] = slugify(title) + '-' + str(uuid.uuid4())[:8]
         validated_data['organizer'] = self.context['request'].user
-        return super().create(validated_data)
+        validated_data['status'] = Event.Status.PENDING
+
+        event = super().create(validated_data)
+        TicketType.objects.create(
+            event=event,
+            name='Standard',
+            price=ticket_price,
+            quantity=ticket_quantity,
+        )
+
+        admins = User.objects.filter(role=User.Role.ADMIN)
+        for admin in admins:
+            create_notification(
+                recipient=admin,
+                notification_type=Notification.Type.EVENT_SUBMITTED,
+                title=f'New event pending validation: {event.title}',
+                message=f'{event.organizer.full_name} submitted "{event.title}" for review.',
+                data={'event_id': event.id, 'organizer_id': event.organizer_id},
+            )
+
+        return event
 
 class FavoriteSerializer(serializers.ModelSerializer):
     event_title = serializers.CharField(source='event.title', read_only=True)

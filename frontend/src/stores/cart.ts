@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { apiClient } from '@/services/http/axios'
+import { paymentsApi } from '@/services/api'
 
 export type CartItem = {
   key: string
@@ -13,8 +13,9 @@ export type CartItem = {
 }
 
 type CheckoutResult = {
-  id: number
-  status: string
+  payment_id: number
+  checkout_url: string
+  session_id: string
 }
 
 const STORAGE_KEY = 'hotelmate_cart'
@@ -99,17 +100,18 @@ export const useCartStore = defineStore('cart', {
     async checkout(): Promise<CheckoutResult> {
       if (!this.validateStocks())
         throw new Error('Stock insuffisant pour un ou plusieurs billets.')
+      if (this.items.length !== 1)
+        throw new Error('Le checkout supporte actuellement un seul type de billet à la fois.')
 
       this.checkoutLoading = true
       try {
-        const { data } = await apiClient.post('/orders', {
-          items: this.items.map(item => ({
-            event_id: item.eventId,
-            ticket_type_id: item.ticketTypeId,
-            quantity: item.quantity,
-          })),
+        const [item] = this.items
+        return await paymentsApi.createCheckoutSession({
+          ticket_type_id: item.ticketTypeId,
+          quantity: item.quantity,
+          success_url: `${window.location.origin}/history`,
+          cancel_url: `${window.location.origin}/events/id-${item.eventId}`,
         })
-        return data as CheckoutResult
       }
       finally {
         this.checkoutLoading = false

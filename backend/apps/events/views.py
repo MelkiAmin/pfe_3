@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, filters, mixins, status, serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, inline_serializer, OpenApiResponse
 
@@ -35,7 +36,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 event_status_action_serializer = inline_serializer(
     name='EventStatusAction',
     fields={
-        'action': drf_serializers.ChoiceField(choices=['publish', 'cancel', 'complete']),
+        'action': drf_serializers.ChoiceField(choices=['cancel', 'complete']),
         'reason': drf_serializers.CharField(required=False, allow_blank=True),
     },
 )
@@ -72,13 +73,27 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         if self.action == 'list':
-            if not (self.request.user.is_authenticated and
-                    self.request.user.role in ['organizer', 'admin']):
-                qs = qs.filter(status='published')
+            if self.request.user.is_authenticated and self.request.user.role == 'admin':
+                return qs
+            if self.request.user.is_authenticated and self.request.user.role == 'organizer':
+                return qs.filter(Q(organizer=self.request.user) | Q(status=Event.Status.APPROVED)).distinct()
+
+            qs = qs.filter(status=Event.Status.APPROVED)
+
+        if self.action == 'retrieve':
+            user = self.request.user
+            if user.is_authenticated and user.role == 'admin':
+                return qs
+            if user.is_authenticated and user.role == 'organizer':
+                return qs.filter(
+                    Q(organizer=user) | Q(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED]),
+                ).distinct()
+
+            return qs.filter(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED])
         return qs
 
     @extend_schema(
-        tags=['Events'], summary='Change event status (publish / cancel / complete)',
+        tags=['Events'], summary='Change event status (cancel / complete)',
         request=event_status_action_serializer,
         responses={
             200: EventDetailSerializer(),
@@ -93,18 +108,17 @@ class EventViewSet(viewsets.ModelViewSet):
         act = request.data.get('action')
 
         transitions = {
-            'publish':  (Event.Status.DRAFT,      Event.Status.PUBLISHED),
-            'cancel':   (None,                     Event.Status.CANCELLED),
-            'complete': (Event.Status.PUBLISHED,   Event.Status.COMPLETED),
+            'cancel':   ([Event.Status.PENDING, Event.Status.APPROVED], Event.Status.CANCELLED),
+            'complete': ([Event.Status.APPROVED], Event.Status.COMPLETED),
         }
 
         if act not in transitions:
             return Response({'detail': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        required_from, to_status = transitions[act]
-        if required_from and event.status != required_from:
+        allowed_from, to_status = transitions[act]
+        if allowed_from and event.status not in allowed_from:
             return Response(
-                {'detail': f'Event must be in "{required_from}" state to {act}.'},
+                {'detail': f'Event cannot transition from "{event.status}" via "{act}".'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if act == 'cancel' and event.status == Event.Status.CANCELLED:

@@ -88,8 +88,8 @@ class OrganizerDashboardView(APIView):
 
         return Response({
             'total_events':       events.count(),
-            'published_events':   events.filter(status='published').count(),
-            'draft_events':       events.filter(status='draft').count(),
+            'published_events':   events.filter(status='approved').count(),
+            'draft_events':       events.filter(status='pending').count(),
             'cancelled_events':   events.filter(status='cancelled').count(),
             'total_tickets_sold': tickets.count(),
             'total_revenue':      total_revenue,

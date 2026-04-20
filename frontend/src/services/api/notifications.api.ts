@@ -1,9 +1,11 @@
 import { $api } from '@/utils/api'
+import { unwrapListResponse } from './list-response'
 import type { Notification, UnreadCountResponse } from './types'
+import type { ListResponse } from './list-response'
 
 export const notificationsApi = {
   list() {
-    return $api<Notification[]>('/notifications/')
+    return $api<ListResponse<Notification>>('/notifications/').then(unwrapListResponse)
   },
 
   getById(notificationId: number | string) {

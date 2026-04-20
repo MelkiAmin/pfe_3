@@ -32,7 +32,7 @@ class TestEmailVerification:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
 class TestPasswordReset:
-    def test_request_reset_always_200(self, api_client):
+    def test_request_reset_always_200(self, api_client, db):
         resp = api_client.post('/api/auth/password-reset/', {'email': 'nonexistent@x.com'}, format='json')
         assert resp.status_code == status.HTTP_200_OK
 
