@@ -64,14 +64,17 @@ const openReject = (id: number) => {
 const handleApprove = async () => {
   if (!selectedId.value) return
   try {
-    await authApi.approveOrganizer(selectedId.value)
-    snackbarText.value = 'Organisateur approuve'
+    const response = await authApi.approveOrganizer(selectedId.value)
+    console.log('Approve response:', response)
+    snackbarText.value = response.detail || 'Organisateur approuve'
     snackbarColor.value = 'success'
     snackbar.value = true
     approveDialog.value = false
+    selectedId.value = null
     fetchPending()
   }
   catch (error: any) {
+    console.error('Approve error:', error)
     snackbarText.value = error?.message || 'Erreur'
     snackbarColor.value = 'error'
     snackbar.value = true
@@ -81,14 +84,17 @@ const handleApprove = async () => {
 const handleReject = async () => {
   if (!selectedId.value) return
   try {
-    await authApi.rejectOrganizer(selectedId.value, rejectNote.value)
-    snackbarText.value = 'Organisateur rejete'
+    const response = await authApi.rejectOrganizer(selectedId.value, rejectNote.value)
+    console.log('Reject response:', response)
+    snackbarText.value = response.detail || 'Organisateur rejete'
     snackbarColor.value = 'success'
     snackbar.value = true
     rejectDialog.value = false
+    selectedId.value = null
     fetchPending()
   }
   catch (error: any) {
+    console.error('Reject error:', error)
     snackbarText.value = error?.message || 'Erreur'
     snackbarColor.value = 'error'
     snackbar.value = true

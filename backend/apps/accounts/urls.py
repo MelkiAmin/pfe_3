@@ -11,9 +11,6 @@ urlpatterns = [
     path('2fa/setup/', views.TwoFactorSetupView.as_view(), name='two-factor-setup'),
     path('2fa/verify/', views.TwoFactorVerifyView.as_view(), name='two-factor-verify'),
     path('2fa/disable/', views.TwoFactorDisableView.as_view(), name='two-factor-disable'),
-    # Email verification
-    path('email/request-verification/', views.RequestEmailVerificationView.as_view(), name='request-email-verify'),
-    path('email/confirm-verification/', views.ConfirmEmailVerificationView.as_view(), name='confirm-email-verify'),
     # Password reset
     path('password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),

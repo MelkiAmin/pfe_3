@@ -16,15 +16,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs.pop('password_confirm'):
             raise serializers.ValidationError({'password': 'Passwords do not match.'})
+        role = attrs.get('role', User.Role.ATTENDEE)
+        if role not in [User.Role.ATTENDEE, User.Role.ORGANIZER]:
+            attrs['role'] = User.Role.ATTENDEE
         return attrs
 
     def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
+        role = validated_data.get('role', User.Role.ATTENDEE)
+        status = User.Status.PENDING if role == User.Role.ORGANIZER else User.Status.APPROVED
+        validated_data['status'] = status
+        user = User.objects.create_user(**validated_data)
+        return user
 
-
-class EmailVerifySerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    code = serializers.CharField(max_length=6)
 
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
@@ -32,10 +35,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'full_name',
-                  'role', 'avatar', 'phone', 'is_email_verified', 'is_2fa_enabled',
+                  'role', 'status', 'avatar', 'phone', 'is_2fa_enabled',
                   'two_factor_enabled_at', 'created_at']
-        read_only_fields = ['id', 'email', 'role', 'is_email_verified', 'is_2fa_enabled',
-                            'two_factor_enabled_at', 'created_at']
+        read_only_fields = ['id', 'email', 'role', 'status', 'is_2fa_enabled',
+                          'two_factor_enabled_at', 'created_at']
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
@@ -77,6 +81,18 @@ class LoginSerializer(TokenObtainPairSerializer):
 
         if not user.is_active:
             raise serializers.ValidationError({'detail': 'User account is disabled.'})
+
+        if user.status == User.Status.PENDING:
+            raise serializers.ValidationError({
+                'detail': 'Votre compte est en attente d\'approbation par l\'administrateur.',
+                'status': 'pending'
+            })
+
+        if user.status == User.Status.REJECTED:
+            raise serializers.ValidationError({
+                'detail': 'Votre compte a été rejeté. Contactez l\'administrateur.',
+                'status': 'rejected'
+            })
 
         self.user = user
         otp_code = attrs.get('otp_code')

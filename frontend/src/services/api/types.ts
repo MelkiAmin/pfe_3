@@ -12,12 +12,10 @@ export type AuthUser = {
   last_name: string
   full_name: string
   role: UserRole
+  status?: 'pending' | 'approved' | 'rejected'
   avatar: string | null
   phone: string
-  is_email_verified: boolean
   created_at: string
-  approval_status?: 'pending' | 'approved' | 'rejected'
-  approval_note?: string
 }
 
 export type AdminUserStatus = 'active' | 'banned'

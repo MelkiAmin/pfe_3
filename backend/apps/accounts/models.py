@@ -16,6 +16,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('role', User.Role.ADMIN)
+        extra_fields.setdefault('status', User.Status.APPROVED)
         return self.create_user(email, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -24,7 +25,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ORGANIZER = 'organizer', 'Organizer'
         ADMIN = 'admin', 'Admin'
 
-    class ApprovalStatus(models.TextChoices):
+    class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
         APPROVED = 'approved', 'Approved'
         REJECTED = 'rejected', 'Rejected'
@@ -33,13 +34,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.ATTENDEE)
-    approval_status = models.CharField(max_length=20, choices=ApprovalStatus.choices, default=ApprovalStatus.PENDING, blank=True)
-    approval_note = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status_note = models.TextField(blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    is_email_verified = models.BooleanField(default=False)
     banned_at = models.DateTimeField(null=True, blank=True)
     ban_reason = models.TextField(blank=True)
     is_2fa_enabled = models.BooleanField(default=False)

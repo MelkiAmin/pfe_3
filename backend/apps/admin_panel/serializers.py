@@ -6,7 +6,7 @@ from apps.organizer.models import OrganizerProfile
 
 class AdminUserListSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
-    status = serializers.SerializerMethodField()
+    account_status = serializers.SerializerMethodField()
     is_banned = serializers.ReadOnlyField()
 
     class Meta:
@@ -18,19 +18,19 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             'last_name',
             'full_name',
             'role',
+            'status',
             'phone',
             'is_active',
             'is_banned',
-            'status',
+            'account_status',
             'ban_reason',
             'banned_at',
-            'is_email_verified',
             'is_2fa_enabled',
             'created_at',
             'updated_at',
         ]
 
-    def get_status(self, obj):
+    def get_account_status(self, obj):
         return 'banned' if obj.is_banned else 'active'
 
 

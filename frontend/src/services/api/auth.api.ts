@@ -115,13 +115,13 @@ export const authApi = {
   },
 
   approveOrganizer(userId: number) {
-    return $api<{ detail: string; approval_status: string }>(`/auth/organizers/${userId}/approve/`, {
+    return $api<{ detail: string; status: string }>(`/auth/organizers/${userId}/approve/`, {
       method: 'POST',
     })
   },
 
   rejectOrganizer(userId: number, note: string) {
-    return $api<{ detail: string; approval_status: string }>(`/auth/organizers/${userId}/reject/`, {
+    return $api<{ detail: string; status: string }>(`/auth/organizers/${userId}/reject/`, {
       method: 'POST',
       body: { note },
     })
