@@ -55,6 +55,7 @@ class EventViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'event_type', 'category', 'city', 'is_free']
     search_fields = ['title', 'description', 'city', 'venue_name']
     ordering_fields = ['start_date', 'created_at', 'title']
+    permission_classes = [permissions.AllowAny]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -64,14 +65,40 @@ class EventViewSet(viewsets.ModelViewSet):
         return EventDetailSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        request = getattr(self, 'request', None)
+        path = getattr(request, 'path', '') if request else ''
+
+        if path == '/api/events/featured/' or path.startswith('/api/events/featured'):
             return [permissions.AllowAny()]
-        if self.action == 'create':
+        if path == '/api/events/' and request and request.method == 'GET':
+            return [permissions.AllowAny()]
+        if path.startswith('/api/events/') and path != '/api/events/':
+            pk = path.split('/api/events/')[-1].split('/')[0]
+            if pk.isdigit() or pk:
+                return [permissions.AllowAny()]
+
+        action = getattr(self, 'action', None)
+        if action in ['list', 'retrieve', 'featured']:
+            return [permissions.AllowAny()]
+        if action == 'create':
             return [IsOrganizerUser()]
         return [IsOwnerOrAdmin()]
 
     def get_queryset(self):
         qs = super().get_queryset()
+
+        # Custom filters
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        is_free = self.request.query_params.get('is_free')
+
+        if date_from:
+            qs = qs.filter(start_date__gte=date_from)
+        if date_to:
+            qs = qs.filter(end_date__lte=date_to)
+        if is_free is not None:
+            qs = qs.filter(is_free=is_free.lower() == 'true')
+
         if self.action == 'list':
             if self.request.user.is_authenticated and self.request.user.role == 'admin':
                 return qs
@@ -91,6 +118,30 @@ class EventViewSet(viewsets.ModelViewSet):
 
             return qs.filter(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED])
         return qs
+
+    @extend_schema(
+        tags=['Events'],
+        summary='List featured events',
+        parameters=[
+            OpenApiParameter('limit', int, OpenApiParameter.QUERY, description='Number of featured events to return (default 6)'),
+        ],
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], url_path='featured')
+    def featured_events(self, request):
+        try:
+            limit_param = request.query_params.get('limit', '6')
+            limit = int(limit_param) if limit_param else 6
+        except (ValueError, TypeError):
+            limit = 6
+
+        if limit < 1:
+            limit = 6
+        if limit > 20:
+            limit = 20
+
+        events = Event.objects.filter(status=Event.Status.APPROVED).order_by('-created_at')[:limit]
+        serializer = EventListSerializer(events, many=True, context={'request': request})
+        return Response(serializer.data)
 
     @extend_schema(
         tags=['Events'], summary='Change event status (cancel / complete)',

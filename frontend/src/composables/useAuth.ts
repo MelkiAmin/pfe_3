@@ -51,12 +51,20 @@ export const useAuth = () => {
   }
 
   const register = async (payload: RegisterPayload) => {
-    const data = await authApi.register({
-      role: 'attendee',
-      ...payload,
-    })
-    setSession(data)
+    const data = await authApi.register(payload)
     return data
+  }
+
+  const verifyOtp = async (email: string, code: string) => {
+    return authApi.verifyEmail({ email, code })
+  }
+
+  const requestPasswordReset = async (email: string) => {
+    return authApi.requestPasswordReset({ email })
+  }
+
+  const resetPassword = async (email: string, code: string, newPassword: string) => {
+    return authApi.resetPassword({ email, code, new_password: newPassword })
   }
 
   const logout = async () => {
@@ -75,6 +83,9 @@ export const useAuth = () => {
   return {
     login,
     register,
+    verifyOtp,
+    requestPasswordReset,
+    resetPassword,
     logout,
     clearSession,
     extractErrorMessage,

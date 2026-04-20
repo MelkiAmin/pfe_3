@@ -6,9 +6,15 @@ from apps.notifications.models import Notification
 from apps.notifications.tasks import create_notification
 
 class CategorySerializer(serializers.ModelSerializer):
+    events_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'icon']
+        fields = ['id', 'name', 'slug', 'description', 'icon', 'events_count']
+
+    def get_events_count(self, obj):
+        from apps.events.models import Event
+        return Event.objects.filter(category=obj, status=Event.Status.APPROVED).count()
 
 class EventListSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
@@ -17,15 +23,23 @@ class EventListSerializer(serializers.ModelSerializer):
     is_sold_out = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     reviews_count = serializers.ReadOnlyField()
+    min_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = [
             'id', 'title', 'slug', 'cover_image', 'event_type', 'status',
             'category', 'organizer_name', 'start_date', 'end_date',
-            'city', 'country', 'is_free', 'tickets_sold', 'is_sold_out',
+            'city', 'country', 'is_free', 'min_price', 'tickets_sold', 'is_sold_out',
             'average_rating', 'reviews_count',
         ]
+
+    def get_min_price(self, obj):
+        from apps.tickets.models import TicketType
+        ticket_type = TicketType.objects.filter(event=obj).order_by('price').first()
+        if ticket_type:
+            return str(ticket_type.price)
+        return None
 
 class EventDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)

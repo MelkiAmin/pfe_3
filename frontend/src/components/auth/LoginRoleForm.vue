@@ -45,6 +45,32 @@ const onSubmit = async () => {
     formError.value = error?.message || authStore.error || 'Erreur de connexion.'
   }
 }
+
+const showForgotPassword = ref(false)
+const resetEmail = ref('')
+const resetLoading = ref(false)
+const resetSuccess = ref(false)
+const resetError = ref('')
+
+const handleForgotPassword = async () => {
+  if (!resetEmail.value) {
+    resetError.value = 'Please enter your email address.'
+    return
+  }
+
+  resetLoading.value = true
+  resetError.value = ''
+  try {
+    await authStore.requestPasswordReset(resetEmail.value)
+    resetSuccess.value = true
+  }
+  catch (error: any) {
+    resetError.value = error?.message || 'Failed to send reset email. Please try again.'
+  }
+  finally {
+    resetLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -84,12 +110,13 @@ const onSubmit = async () => {
           :label="$t('auth.remember_me')"
           hide-details
         />
-        <RouterLink
-          to="/register"
+        <a
+          href="#"
           class="text-primary text-body-2 text-decoration-none"
+          @click.prevent="showForgotPassword = true"
         >
-          Create account
-        </RouterLink>
+          Forgot password?
+        </a>
       </div>
 
       <VBtn
@@ -101,10 +128,20 @@ const onSubmit = async () => {
         Se connecter
       </VBtn>
 
+      <div class="text-center text-body-2">
+        Don't have an account?
+        <RouterLink
+          to="/register"
+          class="text-primary text-decoration-none font-weight-bold"
+        >
+          Sign up
+        </RouterLink>
+      </div>
+
       <div class="demo-box">
         <div class="demo-box__header">
-          <span>Comptes par défaut</span>
-          <span class="text-medium-emphasis">Cliquer pour préremplir</span>
+          <span>Demo accounts</span>
+          <span class="text-medium-emphasis">Click to fill</span>
         </div>
 
         <button
@@ -127,6 +164,66 @@ const onSubmit = async () => {
       </div>
     </div>
   </VForm>
+
+  <!-- Forgot Password Dialog -->
+  <VDialog v-model="showForgotPassword" max-width="450">
+    <VCard>
+      <VCardItem class="text-center pa-6">
+        <VAvatar color="primary" size="64" class="mb-4">
+          <VIcon icon="tabler-key" size="32" />
+        </VAvatar>
+        <VCardTitle class="text-h5">Reset password</VCardTitle>
+        <VCardText class="text-medium-emphasis">
+          Enter your email address and we'll send you a code to reset your password.
+        </VCardText>
+      </VCardItem>
+
+      <VCardText class="pa-6 pt-0">
+        <VAlert
+          v-if="resetError"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+        >
+          {{ resetError }}
+        </VAlert>
+
+        <VAlert
+          v-if="resetSuccess"
+          type="success"
+          variant="tonal"
+          class="mb-4"
+        >
+          Password reset code sent to your email!
+        </VAlert>
+
+        <AppTextField
+          v-if="!resetSuccess"
+          v-model="resetEmail"
+          label="Email address"
+          type="email"
+          prepend-inner-icon="tabler-mail"
+        />
+      </VCardText>
+
+      <VCardActions class="justify-center pb-6">
+        <VBtn
+          variant="text"
+          @click="showForgotPassword = false"
+        >
+          Cancel
+        </VBtn>
+        <VBtn
+          v-if="!resetSuccess"
+          color="primary"
+          :loading="resetLoading"
+          @click="handleForgotPassword"
+        >
+          Send reset code
+        </VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
 </template>
 
 <style scoped>

@@ -16,6 +16,21 @@ export type AuthUser = {
   phone: string
   is_email_verified: boolean
   created_at: string
+  approval_status?: 'pending' | 'approved' | 'rejected'
+  approval_note?: string
+}
+
+export type AdminUserStatus = 'active' | 'banned'
+
+export type AdminUser = AuthUser & {
+  phone: string
+  is_active: boolean
+  is_banned: boolean
+  status: AdminUserStatus
+  ban_reason: string
+  banned_at: string | null
+  is_2fa_enabled: boolean
+  updated_at: string
 }
 
 export type AuthResponse = {
@@ -29,6 +44,7 @@ export type Category = {
   slug: string
   description: string
   icon: string
+  events_count?: number
 }
 
 export type EventStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed'
@@ -48,6 +64,7 @@ export type EventListItem = {
   city: string
   country: string
   is_free: boolean
+  min_price: string | number | null
   tickets_sold: number
   is_sold_out: boolean
   average_rating: number
@@ -105,8 +122,11 @@ export type EventPayload = {
 
 export type OrganizerProfile = {
   id: number
+  user: number
   user_name: string
   user_email: string
+  user_role: string
+  is_active: boolean
   organization_name: string
   bio: string
   logo: string | null

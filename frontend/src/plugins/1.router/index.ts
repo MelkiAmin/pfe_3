@@ -15,25 +15,22 @@ const router = createRouter({
 
     return { top: 0 }
   },
-  // Apply generated layouts once to the full route tree. Wrapping nested
-  // routes individually causes pages like /admin/status to mount the same
-  // layout multiple times.
   extendRoutes: pages => setupLayouts(pages as RouteRecordRaw[]),
 })
 
-router.beforeEach(to => {
+router.beforeEach(async to => {
   const authStore = useAuthStore(store)
-  if (!authStore.accessToken)
-    authStore.bootstrap()
+  authStore.bootstrap()
 
   const accessToken = authStore.accessToken
-  const role = authStore.role
+  const role = authStore.role as string
   const isAuthPage = to.path === '/login' || to.path === '/register'
   const isExplicitPublicPath = to.path === '/login'
     || to.path === '/register'
     || to.path === '/events'
     || to.path.startsWith('/events/')
     || to.path === '/tickets/verify'
+    || to.path === '/'
   const isPublicRoute = Boolean(to.meta.public) || isExplicitPublicPath
 
   const adminOnly = to.path.startsWith('/admin')
@@ -54,7 +51,7 @@ router.beforeEach(to => {
   }
 
   if (isAuthPage && accessToken)
-    return { path: authStore.dashboardRouteByRole(role as any) }
+    return { path: authStore.dashboardRouteByRole(role) }
 
   if (adminOnly && role !== 'admin')
     return { path: '/' }
@@ -63,7 +60,7 @@ router.beforeEach(to => {
     return { path: '/' }
 
   if (allowedRoles && !allowedRoles.includes(role))
-    return { path: authStore.dashboardRouteByRole(role as any) }
+    return { path: authStore.dashboardRouteByRole(role) }
 })
 
 export { router }

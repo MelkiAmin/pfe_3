@@ -21,6 +21,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
 
+
+class EmailVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6)
+
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
 
@@ -56,21 +61,41 @@ class LoginSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        email = attrs.get(self.username_field) or attrs.get('email')
+        password = attrs.get('password')
+
+        if not email or not password:
+            raise serializers.ValidationError({'detail': 'Email and password are required.'})
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({'detail': 'Invalid email or password.'})
+
+        if not user.check_password(password):
+            raise serializers.ValidationError({'detail': 'Invalid email or password.'})
+
+        if not user.is_active:
+            raise serializers.ValidationError({'detail': 'User account is disabled.'})
+
+        self.user = user
         otp_code = attrs.get('otp_code')
 
-        if self.user.is_2fa_enabled:
+        if user.is_2fa_enabled:
             if not otp_code:
                 raise serializers.ValidationError({'otp_code': 'OTP code is required for this account.'})
 
-            totp = pyotp.TOTP(self.user.two_factor_secret)
+            if not user.two_factor_secret:
+                raise serializers.ValidationError({'detail': '2FA is configured but no secret found.'})
+
+            totp = pyotp.TOTP(user.two_factor_secret)
             if not totp.verify(otp_code, valid_window=1):
                 raise serializers.ValidationError({'otp_code': 'Invalid authentication code.'})
 
-        refresh = self.get_token(self.user)
+        refresh = self.get_token(user)
 
         return {
-            'user': UserProfileSerializer(self.user).data,
+            'user': UserProfileSerializer(user).data,
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),

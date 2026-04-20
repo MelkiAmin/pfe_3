@@ -94,12 +94,60 @@ class TestAdminUserManagement:
         api_client.force_authenticate(user=admin)
         resp = api_client.get('/api/admin-panel/users/')
         assert resp.status_code == status.HTTP_200_OK
+        assert 'results' in resp.data
 
     def test_admin_searches_users(self, api_client, admin, organizer):
         api_client.force_authenticate(user=admin)
         resp = api_client.get('/api/admin-panel/users/?search=org@hotelmate')
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data['count'] >= 1
+
+    def test_admin_filters_users_by_role_and_status(self, api_client, admin, organizer):
+        banned_user = User.objects.create_user(
+            email='banned@hotelmate.com', password='Pass123!',
+            first_name='Banned', last_name='User', role=User.Role.ATTENDEE, is_active=False,
+        )
+
+        api_client.force_authenticate(user=admin)
+
+        role_resp = api_client.get('/api/admin-panel/users/?role=organizer')
+        assert role_resp.status_code == status.HTTP_200_OK
+        assert any(item['id'] == organizer.id for item in role_resp.data['results'])
+
+        status_resp = api_client.get('/api/admin-panel/users/?status=banned')
+        assert status_resp.status_code == status.HTTP_200_OK
+        assert any(item['id'] == banned_user.id for item in status_resp.data['results'])
+
+    def test_admin_bans_and_unbans_user(self, api_client, admin, organizer):
+        api_client.force_authenticate(user=admin)
+
+        ban_resp = api_client.post(
+            f'/api/admin-panel/users/{organizer.id}/ban/',
+            {'reason': 'Fraudulent activity'},
+            format='json',
+        )
+        assert ban_resp.status_code == status.HTTP_200_OK
+        organizer.refresh_from_db()
+        assert organizer.is_active is False
+        assert organizer.ban_reason == 'Fraudulent activity'
+
+        unban_resp = api_client.post(f'/api/admin-panel/users/{organizer.id}/unban/', format='json')
+        assert unban_resp.status_code == status.HTTP_200_OK
+        organizer.refresh_from_db()
+        assert organizer.is_active is True
+        assert organizer.ban_reason == ''
+
+    def test_admin_updates_user(self, api_client, admin, organizer):
+        api_client.force_authenticate(user=admin)
+        resp = api_client.patch(
+            f'/api/admin-panel/users/{organizer.id}/',
+            {'first_name': 'Updated', 'role': 'attendee', 'status': 'active'},
+            format='json',
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        organizer.refresh_from_db()
+        assert organizer.first_name == 'Updated'
+        assert organizer.role == User.Role.ATTENDEE
 
     def test_admin_deletes_user(self, api_client, admin, db):
         target = User.objects.create_user(
@@ -109,7 +157,8 @@ class TestAdminUserManagement:
         api_client.force_authenticate(user=admin)
         resp = api_client.delete(f'/api/admin-panel/users/{target.id}/')
         assert resp.status_code == status.HTTP_204_NO_CONTENT
-        assert not User.objects.filter(pk=target.id).exists()
+        target.refresh_from_db()
+        assert target.is_active is False
 
 
 class TestAdminRevenueReport:

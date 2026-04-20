@@ -10,21 +10,33 @@ import type {
   EventType,
   FavoriteEvent,
 } from './types'
-import type { ListResponse } from './list-response'
+import type { ListResponse, PaginatedResponse } from './list-response'
 
 export type EventListParams = {
+  page?: number
+  page_size?: number
   status?: EventStatus
   event_type?: EventType
-  category?: number
+  category?: number | string
   city?: string
   is_free?: boolean
   search?: string
-  ordering?: 'start_date' | '-start_date' | 'created_at' | '-created_at' | 'title' | '-title'
+  ordering?: 'start_date' | '-start_date' | 'created_at' | '-created_at' | 'title' | '-title' | 'average_rating' | '-average_rating'
+  date_from?: string
+  date_to?: string
 }
 
 export const eventsApi = {
   list(params?: EventListParams) {
-    return $api<ListResponse<EventListItem>>('/events/', { query: params }).then(unwrapListResponse)
+    return $api<PaginatedResponse<EventListItem>>('/events/', { query: params })
+  },
+
+  listFeatured(limit = 6) {
+    return $api<EventListItem[]>(`/events/featured/?limit=${limit}`, { _skipAuth: true })
+  },
+
+  listCategories() {
+    return $api<PaginatedResponse<Category>>('/events/categories/', { _skipAuth: true })
   },
 
   getById(eventId: number | string) {
@@ -47,10 +59,6 @@ export const eventsApi = {
 
   remove(eventId: number | string) {
     return $api<void>(`/events/${eventId}/`, { method: 'DELETE' })
-  },
-
-  listCategories() {
-    return $api<ListResponse<Category>>('/events/categories/').then(unwrapListResponse)
   },
 
   getCategory(categoryId: number | string) {

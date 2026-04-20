@@ -2,7 +2,7 @@ from django.db import migrations
 from django.contrib.auth.hashers import make_password
 
 
-def seed_default_accounts(apps, schema_editor):
+def fix_seeded_users(apps, schema_editor):
     User = apps.get_model('accounts', 'User')
 
     default_accounts = [
@@ -39,20 +39,37 @@ def seed_default_accounts(apps, schema_editor):
     for account in default_accounts:
         email = account['email']
         password = account.pop('password')
-        user, created = User.objects.get_or_create(email=email, defaults=account)
-        if user:
+
+        try:
+            user = User.objects.get(email=email)
             user.password = make_password(password)
-            user.is_email_verified = account.get('is_email_verified', False)
-            user.approval_status = account.get('approval_status', 'pending')
-            user.save(update_fields=['password', 'is_email_verified', 'approval_status'])
+            user.is_email_verified = True
+            user.approval_status = account.get('approval_status', 'approved')
+            user.is_active = True
+            user.save(update_fields=['password', 'is_email_verified', 'approval_status', 'is_active'])
+        except User.DoesNotExist:
+            user = User.objects.create_user(
+                email=email,
+                password=password,
+                first_name=account['first_name'],
+                last_name=account['last_name'],
+                role=account['role'],
+                is_staff=account.get('is_staff', False),
+                is_email_verified=True,
+                approval_status=account.get('approval_status', 'approved'),
+            )
+
+
+def noop(apps, schema_editor):
+    pass
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0002_user_two_factor_fields'),
+        ('accounts', '0005_add_approval_fields'),
     ]
 
     operations = [
-        migrations.RunPython(seed_default_accounts, migrations.RunPython.noop),
+        migrations.RunPython(fix_seeded_users, noop),
     ]

@@ -11,7 +11,11 @@ const eventDetailPath = computed(() => {
   return safeSlug ? `/events/${safeSlug}` : `/events/id-${props.event.id}`
 })
 
-const priceLabel = computed(() => props.event.is_free ? 'Gratuit' : 'À partir de billets disponibles')
+const priceLabel = computed(() => {
+  if (props.event.is_free) return 'Gratuit'
+  if (props.event.min_price) return `À partir de ${props.event.min_price}€`
+  return 'Billets disponibles'
+})
 </script>
 
 <template>

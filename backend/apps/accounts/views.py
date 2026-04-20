@@ -20,6 +20,7 @@ from .serializers import (
     TwoFactorSetupSerializer,
     TwoFactorVerifySerializer,
     TwoFactorDisableSerializer,
+    EmailVerifySerializer,
 )
 
 # ─── Inline response schemas ──────────────────────────────────────────────────
@@ -63,19 +64,30 @@ class RegisterView(generics.CreateAPIView):
     @extend_schema(
         tags=['Authentication'], summary='Register a new user',
         request=UserRegistrationSerializer,
-        responses={201: _auth_response, 400: OpenApiResponse(description='Validation error')},
+        responses={201: _msg, 400: OpenApiResponse(description='Validation error')},
     )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        token_serializer = LoginSerializer(data={
-            User.USERNAME_FIELD: request.data.get(User.USERNAME_FIELD),
-            'password': request.data.get('password'),
-        })
-        token_serializer.is_valid(raise_exception=True)
-        return Response({**token_serializer.validated_data, 'user': UserProfileSerializer(user).data},
-                        status=status.HTTP_201_CREATED)
+        
+        # Generate and send OTP
+        code = str(secrets.randbelow(900000) + 100000)
+        cache.set(f'register_otp:{user.pk}', code, timeout=600)
+        try:
+            from apps.notifications.tasks import send_sendgrid_email
+            send_sendgrid_email(
+                to_email=user.email,
+                subject='Planova - Verify your email',
+                text_content=f'Your verification code: {code}\n(Valid for 10 minutes.)',
+            )
+        except Exception:
+            pass
+        
+        return Response(
+            {'detail': 'Registration successful. Please verify your email with the code sent.'},
+            status=status.HTTP_201_CREATED
+        )
 
 
 class LoginView(APIView):
@@ -91,6 +103,23 @@ class LoginView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        user_data = serializer.validated_data['user']
+        user = User.objects.get(id=user_data['id'])
+
+        if user.role == User.Role.ORGANIZER and user.approval_status != User.ApprovalStatus.APPROVED:
+            if user.approval_status == User.ApprovalStatus.PENDING:
+                return Response({
+                    'detail': 'Your account is pending approval.',
+                    'approval_status': user.approval_status,
+                }, status=status.HTTP_403_FORBIDDEN)
+            elif user.approval_status == User.ApprovalStatus.REJECTED:
+                return Response({
+                    'detail': 'Your account has been rejected.',
+                    'approval_status': user.approval_status,
+                    'note': user.approval_note,
+                }, status=status.HTTP_403_FORBIDDEN)
+
         return Response(serializer.validated_data)
 
 
@@ -245,16 +274,52 @@ class RequestEmailVerificationView(APIView):
 
 
 class ConfirmEmailVerificationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     @extend_schema(
         tags=['Authentication'], summary='Confirm email verification',
-        request=inline_serializer('EmailVerifyConfirm', fields={'code': serializers.CharField()}),
-        responses={200: _msg, 400: OpenApiResponse(description='Invalid or expired code')},
+        request=EmailVerifySerializer,
+        responses={200: _auth_response, 400: OpenApiResponse(description='Invalid or expired code')},
     )
     def post(self, request):
-        code = request.data.get('code', '')
-        stored = cache.get(f'email_verify:{request.user.pk}')
-        if not stored or stored != code:
-            return Response({'detail': 'Invalid or expired code.'}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = EmailVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        code = serializer.validated_data['code']
+        
+        # Try registration OTP first, then regular email verification
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'detail': 'Invalid email or code.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        register_code = cache.get(f'register_otp:{user.pk}')
+        email_code = cache.get(f'email_verify:{user.pk}')
+        
+        if register_code and register_code == code:
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified', 'updated_at'])
+            cache.delete(f'register_otp:{user.pk}')
+            
+            # Set approval based on role
+            if user.role == User.Role.ORGANIZER:
+                user.approval_status = User.ApprovalStatus.PENDING
+            else:
+                user.approval_status = User.ApprovalStatus.APPROVED
+            user.save(update_fields=['approval_status', 'updated_at'])
+            
+            return Response({
+                'detail': 'Email verified successfully.',
+                'approval_status': user.approval_status,
+            })
+        elif email_code and email_code == code:
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified', 'updated_at'])
+            cache.delete(f'email_verify:{user.pk}')
+            return Response({'detail': 'Email verified successfully.'})
+        
+        return Response({'detail': 'Invalid or expired code.'}, status=status.HTTP_400_BAD_REQUEST)
         request.user.is_email_verified = True
         request.user.save(update_fields=['is_email_verified', 'updated_at'])
         cache.delete(f'email_verify:{request.user.pk}')
@@ -318,3 +383,54 @@ class PasswordResetConfirmView(APIView):
         user.save()
         cache.delete(f'pwd_reset:{email}')
         return Response({'detail': 'Password reset successfully.'})
+
+
+# ─── User approval endpoints ───────────────────────────────────────────────────
+
+class ListPendingOrganizersView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        users = User.objects.filter(
+            role=User.Role.ORGANIZER,
+            approval_status=User.ApprovalStatus.PENDING,
+        ).order_by('-created_at')
+        data = [{
+            'id': u.id,
+            'email': u.email,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'phone': u.phone,
+            'created_at': u.created_at.isoformat(),
+        } for u in users]
+        return Response(data)
+
+
+class ApproveOrganizerView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id, role=User.Role.ORGANIZER)
+        except User.DoesNotExist:
+            return Response({'detail': 'Organizer not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        user.approval_status = User.ApprovalStatus.APPROVED
+        user.save(update_fields=['approval_status', 'updated_at'])
+        return Response({'detail': 'Organizer approved.', 'approval_status': user.approval_status})
+
+
+class RejectOrganizerView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id, role=User.Role.ORGANIZER)
+        except User.DoesNotExist:
+            return Response({'detail': 'Organizer not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        note = request.data.get('note', '')
+        user.approval_status = User.ApprovalStatus.REJECTED
+        user.approval_note = note
+        user.save(update_fields=['approval_status', 'approval_note', 'updated_at'])
+        return Response({'detail': 'Organizer rejected.', 'approval_status': user.approval_status})

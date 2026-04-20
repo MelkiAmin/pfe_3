@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import DefaultLayoutWithVerticalNav from '@/layouts/components/DefaultLayoutWithVerticalNav.vue'
-
 definePage({
   meta: {
-    layout: 'blank',
     roles: ['admin'],
   },
 })
 </script>
 
 <template>
-  <DefaultLayoutWithVerticalNav>
+  <div class="admin-page">
     <RouterView />
-  </DefaultLayoutWithVerticalNav>
+  </div>
 </template>
+
+<style scoped>
+.admin-page {
+  min-height: 100vh;
+}
+</style>

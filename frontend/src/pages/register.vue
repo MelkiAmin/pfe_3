@@ -9,6 +9,31 @@ definePage({
   },
 })
 
+type RoleOption = {
+  title: string
+  subtitle: string
+  value: 'attendee' | 'organizer'
+  icon: string
+  color: string
+}
+
+const roles: RoleOption[] = [
+  {
+    title: 'Participant',
+    subtitle: 'Reserve tickets and attend events',
+    value: 'attendee',
+    icon: 'tabler-ticket',
+    color: 'primary',
+  },
+  {
+    title: 'Organisateur',
+    subtitle: 'Create and manage events',
+    value: 'organizer',
+    icon: 'tabler-calendar-plus',
+    color: 'info',
+  },
+]
+
 const form = ref({
   firstName: '',
   lastName: '',
@@ -16,14 +41,20 @@ const form = ref({
   phone: '',
   password: '',
   confirmPassword: '',
+  role: 'attendee' as 'attendee' | 'organizer',
 })
 
 const isPasswordVisible = ref(false)
 const isConfirmPasswordVisible = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
+const showOtpDialog = ref(false)
+const otpCode = ref('')
 const router = useRouter()
-const { register, extractErrorMessage } = useAuth()
+const { register, verifyOtp, extractErrorMessage } = useAuth()
+
+const otpEmail = ref('')
 
 const validateForm = () => {
   const firstName = form.value.firstName.trim()
@@ -60,6 +91,7 @@ const validateForm = () => {
 
 const handleRegister = async () => {
   errorMessage.value = ''
+  successMessage.value = ''
   if (!validateForm())
     return
 
@@ -72,9 +104,33 @@ const handleRegister = async () => {
       phone: form.value.phone,
       password: form.value.password,
       password_confirm: form.value.confirmPassword,
+      role: form.value.role,
     })
 
-    await router.replace('/')
+    otpEmail.value = form.value.email
+    showOtpDialog.value = true
+  }
+  catch (error: unknown) {
+    errorMessage.value = extractErrorMessage(error)
+  }
+  finally {
+    isLoading.value = false
+  }
+}
+
+const handleVerifyOtp = async () => {
+  if (!otpCode.value || otpCode.value.length !== 6) {
+    errorMessage.value = 'Please enter a valid 6-digit code.'
+    return
+  }
+
+  isLoading.value = true
+  try {
+    await verifyOtp(otpEmail.value, otpCode.value)
+    successMessage.value = 'Account verified! Redirecting to login...'
+    setTimeout(() => {
+      router.replace('/login')
+    }, 2000)
   }
   catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error)
@@ -93,10 +149,10 @@ const handleRegister = async () => {
           Join Planova
         </p>
         <h1 class="text-h3 mb-2">
-          Create your ticketing account
+          Create your account
         </h1>
         <p class="text-medium-emphasis mb-6">
-          Register in a few seconds and start booking or managing events with a clean, modern experience.
+          Choose your role and start your journey with Planova
         </p>
 
         <VForm @submit.prevent="handleRegister">
@@ -108,6 +164,45 @@ const handleRegister = async () => {
             >
               {{ errorMessage }}
             </VAlert>
+
+            <VAlert
+              v-if="successMessage"
+              type="success"
+              variant="tonal"
+            >
+              {{ successMessage }}
+            </VAlert>
+
+            <!-- Role Selection -->
+            <div class="role-selection mb-4">
+              <div class="text-subtitle-2 mb-2">I want to:</div>
+              <VRadioGroup v-model="form.role" inline>
+                <div class="role-options">
+                  <div
+                    v-for="role in roles"
+                    :key="role.value"
+                    class="role-card"
+                    :class="{ 'role-card--selected': form.role === role.value }"
+                    @click="form.role = role.value"
+                  >
+                    <VIcon
+                      :icon="role.icon"
+                      size="28"
+                      :color="role.color"
+                      class="mb-2"
+                    />
+                    <div class="text-subtitle-1 font-weight-bold">{{ role.title }}</div>
+                    <div class="text-body-2 text-medium-emphasis">{{ role.subtitle }}</div>
+                    <VIcon
+                      v-if="form.role === role.value"
+                      icon="tabler-check-circle"
+                      color="success"
+                      class="role-check"
+                    />
+                  </div>
+                </div>
+              </VRadioGroup>
+            </div>
 
             <VRow>
               <VCol cols="12" md="6">
@@ -138,7 +233,7 @@ const handleRegister = async () => {
               <VCol cols="12" md="6">
                 <AppTextField
                   v-model="form.phone"
-                  label="Phone"
+                  label="Phone (optional)"
                   prepend-inner-icon="tabler-phone"
                   placeholder="+216 00 000 000"
                 />
@@ -171,7 +266,7 @@ const handleRegister = async () => {
               type="submit"
               :loading="isLoading"
             >
-              Créer mon compte
+              Create my account
             </VBtn>
 
             <div class="text-center text-medium-emphasis">
@@ -187,6 +282,43 @@ const handleRegister = async () => {
         </VForm>
       </VCardText>
     </VCard>
+
+    <!-- OTP Verification Dialog -->
+    <VDialog v-model="showOtpDialog" max-width="450" persistent>
+      <VCard>
+        <VCardItem class="text-center pa-6">
+          <VAvatar color="primary" size="64" class="mb-4">
+            <VIcon icon="tabler-mail" size="32" />
+          </VAvatar>
+          <VCardTitle class="text-h5">Verify your email</VCardTitle>
+          <VCardText class="text-medium-emphasis">
+            We've sent a 6-digit code to your email.
+            <br>Enter it below to activate your account.
+          </VCardText>
+        </VCardItem>
+
+        <VCardText class="pa-6 pt-0">
+          <AppTextField
+            v-model="otpCode"
+            label="Verification code"
+            placeholder="000000"
+            maxlength="6"
+            class="otp-input text-center"
+          />
+        </VCardText>
+
+        <VCardActions class="justify-center pb-6">
+          <VBtn
+            color="primary"
+            size="large"
+            :loading="isLoading"
+            @click="handleVerifyOtp"
+          >
+            Verify account
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -208,5 +340,51 @@ const handleRegister = async () => {
 
 .register-grid {
   gap: 1rem;
+}
+
+.role-selection {
+  margin-bottom: 1.5rem;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+
+.role-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  border: 2px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.role-card:hover {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.04);
+}
+
+.role-card--selected {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.08);
+}
+
+.role-check {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+.otp-input :deep(input) {
+  text-align: center;
+  font-size: 1.5rem;
+  letter-spacing: 0.5rem;
 }
 </style>

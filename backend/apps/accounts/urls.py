@@ -17,4 +17,8 @@ urlpatterns = [
     # Password reset
     path('password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    # Organizer approval
+    path('organizers/pending/', views.ListPendingOrganizersView.as_view(), name='list-pending-organizers'),
+    path('organizers/<int:user_id>/approve/', views.ApproveOrganizerView.as_view(), name='approve-organizer'),
+    path('organizers/<int:user_id>/reject/', views.RejectOrganizerView.as_view(), name='reject-organizer'),
 ]

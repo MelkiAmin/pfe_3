@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 from rest_framework import generics, filters, permissions, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,12 +18,22 @@ from drf_spectacular.utils import (
 )
 
 from apps.accounts.models import User
-from apps.accounts.serializers import UserProfileSerializer
+from apps.admin_panel.serializers import (
+    AdminUserBanSerializer,
+    AdminUserListSerializer,
+    AdminUserUpdateSerializer,
+)
 from apps.events.models import Event
 from apps.events.serializers import EventListSerializer, EventDetailSerializer, EventCreateUpdateSerializer
+from apps.organizer.models import OrganizerProfile
 from apps.payments.models import Payment
 from apps.tickets.models import Ticket
 from utils.permissions import IsAdminUser
+from .serializers import (
+    AdminOrganizerSerializer,
+    AdminOrganizerUpdateSerializer,
+    AdminOrganizerStatsSerializer,
+)
 
 # ─── Inline schemas ──────────────────────────────────────────────────────────
 
@@ -153,6 +164,12 @@ class EventAnalyticsAccessMixin(LoginRequiredMixin, UserPassesTestMixin):
         return HttpResponseForbidden('Forbidden.')
 
 
+class AdminResultsPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
 class AdminDashboardView(APIView):
@@ -241,23 +258,110 @@ class AdminRevenueReportView(APIView):
 # ─── Users ───────────────────────────────────────────────────────────────────
 
 class AdminUserListView(generics.ListAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserProfileSerializer
+    serializer_class = AdminUserListSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter]
     search_fields = ['email', 'first_name', 'last_name']
+    pagination_class = AdminResultsPagination
+
+    @extend_schema(
+        tags=['Admin Panel'],
+        summary='List users (admin)',
+        parameters=[
+            OpenApiParameter('search', str, OpenApiParameter.QUERY, description='Search by email, first name, or last name'),
+            OpenApiParameter('role', str, OpenApiParameter.QUERY, description='Filter by attendee, organizer, or admin'),
+            OpenApiParameter('status', str, OpenApiParameter.QUERY, description='Filter by active or banned'),
+            OpenApiParameter('page', int, OpenApiParameter.QUERY),
+            OpenApiParameter('page_size', int, OpenApiParameter.QUERY),
+        ],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = User.objects.all().order_by('-created_at')
+        role = self.request.query_params.get('role')
+        status_value = self.request.query_params.get('status')
+        is_active = self.request.query_params.get('is_active')
+
+        if role in {choice for choice, _ in User.Role.choices}:
+            queryset = queryset.filter(role=role)
+
+        if status_value == 'active':
+            queryset = queryset.filter(is_active=True)
+        elif status_value == 'banned':
+            queryset = queryset.filter(is_active=False)
+        elif is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+
+        return queryset
 
 
 @extend_schema_view(
     get=extend_schema(tags=['Admin Panel'], summary='Get user (admin)'),
-    put=extend_schema(tags=['Admin Panel'], summary='Replace user (admin)'),
     patch=extend_schema(tags=['Admin Panel'], summary='Update user (admin)'),
     delete=extend_schema(tags=['Admin Panel'], summary='Delete user (admin)'),
 )
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
-    serializer_class = UserProfileSerializer
     permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return AdminUserUpdateSerializer
+        return AdminUserListSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(AdminUserListSerializer(instance).data)
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if request.user.pk == user.pk:
+            return Response({'detail': 'You cannot deactivate your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.is_active = False
+        user.save(update_fields=['is_active', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminUserBanView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(
+        tags=['Admin Panel'],
+        summary='Ban user (admin)',
+        request=AdminUserBanSerializer,
+        responses={200: AdminUserListSerializer},
+        parameters=[OpenApiParameter('pk', int, OpenApiParameter.PATH)],
+    )
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        if request.user.pk == user.pk:
+            return Response({'detail': 'You cannot ban your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = AdminUserBanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user.ban(serializer.validated_data.get('reason', ''))
+        return Response(AdminUserListSerializer(user).data)
+
+
+class AdminUserUnbanView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(
+        tags=['Admin Panel'],
+        summary='Unban user (admin)',
+        responses={200: AdminUserListSerializer},
+        parameters=[OpenApiParameter('pk', int, OpenApiParameter.PATH)],
+    )
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        user.unban()
+        return Response(AdminUserListSerializer(user).data)
 
 
 # ─── Events ──────────────────────────────────────────────────────────────────
@@ -359,3 +463,124 @@ class EventAnalyticsDataView(APIView):
         if request.user.role != 'admin' and event.organizer_id != request.user.id:
             return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         return Response(build_event_analytics_payload(event))
+
+
+# ─── Organizers ────────────────────────────────────────────────────────────────
+
+class AdminOrganizerListView(generics.ListAPIView):
+    serializer_class = AdminOrganizerSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['organization_name', 'user__email', 'user__first_name', 'user__last_name']
+    pagination_class = AdminResultsPagination
+
+    @extend_schema(
+        tags=['Admin Panel'],
+        summary='List organizers (admin)',
+        parameters=[
+            OpenApiParameter('search', str, OpenApiParameter.QUERY),
+            OpenApiParameter('is_verified', str, OpenApiParameter.QUERY),
+            OpenApiParameter('page', int, OpenApiParameter.QUERY),
+            OpenApiParameter('page_size', int, OpenApiParameter.QUERY),
+        ],
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = OrganizerProfile.objects.select_related('user').all().order_by('-created_at')
+        is_verified = self.request.query_params.get('is_verified')
+        if is_verified is not None:
+            queryset = queryset.filter(is_verified=is_verified.lower() == 'true')
+        return queryset
+
+
+@extend_schema_view(
+    get=extend_schema(tags=['Admin Panel'], summary='Get organizer (admin)'),
+    patch=extend_schema(tags=['Admin Panel'], summary='Update organizer (admin)'),
+    delete=extend_schema(tags=['Admin Panel'], summary='Deactivate organizer account'),
+)
+class AdminOrganizerDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = OrganizerProfile.objects.select_related('user')
+    permission_classes = [IsAdminUser]
+    lookup_field = 'pk'
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return AdminOrganizerUpdateSerializer
+        return AdminOrganizerSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(AdminOrganizerSerializer(instance).data)
+
+    def destroy(self, request, *args, **kwargs):
+        profile = self.get_object()
+        user = profile.user
+        if request.user.pk == user.pk:
+            return Response({'detail': 'You cannot deactivate your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.is_active = False
+        user.save(update_fields=['is_active', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminOrganizerStatsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(
+        tags=['Admin Panel'],
+        summary='Get organizer statistics',
+        parameters=[OpenApiParameter('pk', int, OpenApiParameter.PATH)],
+        responses={200: AdminOrganizerStatsSerializer},
+    )
+    def get(self, request, pk):
+        from decimal import Decimal
+
+        profile = get_object_or_404(OrganizerProfile.objects.select_related('user'), pk=pk)
+        user = profile.user
+
+        events = Event.objects.filter(organizer=user)
+        tickets = Ticket.objects.filter(
+            event__organizer=user, status__in=['confirmed', 'used']
+        )
+
+        total_revenue = tickets.aggregate(total=Sum('price_paid'))['total'] or Decimal('0.00')
+
+        return Response({
+            'total_events': events.count(),
+            'published_events': events.filter(status=Event.Status.APPROVED).count(),
+            'total_tickets_sold': tickets.count(),
+            'total_revenue': total_revenue,
+        })
+
+
+class AdminOrganizerEventsView(generics.ListAPIView):
+    serializer_class = EventListSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = AdminResultsPagination
+
+    @extend_schema(
+        tags=['Admin Panel'],
+        summary="List organizer's events",
+        parameters=[
+            OpenApiParameter('pk', int, OpenApiParameter.PATH),
+            OpenApiParameter('status', str, OpenApiParameter.QUERY),
+            OpenApiParameter('page', int, OpenApiParameter.QUERY),
+            OpenApiParameter('page_size', int, OpenApiParameter.QUERY),
+        ],
+    )
+    def get(self, request, pk):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        pk = self.kwargs.get('pk')
+        profile = get_object_or_404(OrganizerProfile, pk=pk)
+        qs = Event.objects.filter(organizer=profile.user).select_related('category')
+        status_value = self.request.query_params.get('status')
+        if status_value:
+            qs = qs.filter(status=status_value)
+        return qs

@@ -24,15 +24,24 @@ class User(AbstractBaseUser, PermissionsMixin):
         ORGANIZER = 'organizer', 'Organizer'
         ADMIN = 'admin', 'Admin'
 
+    class ApprovalStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.ATTENDEE)
+    approval_status = models.CharField(max_length=20, choices=ApprovalStatus.choices, default=ApprovalStatus.PENDING, blank=True)
+    approval_note = models.TextField(blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
+    banned_at = models.DateTimeField(null=True, blank=True)
+    ban_reason = models.TextField(blank=True)
     is_2fa_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=64, blank=True)
     two_factor_enabled_at = models.DateTimeField(null=True, blank=True)
@@ -62,6 +71,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_admin(self) -> bool:
         return self.role == self.Role.ADMIN
+
+    @property
+    def is_banned(self) -> bool:
+        return not self.is_active
+
+    def ban(self, reason: str = ''):
+        self.is_active = False
+        self.banned_at = timezone.now()
+        self.ban_reason = reason
+        self.save(update_fields=['is_active', 'banned_at', 'ban_reason', 'updated_at'])
+
+    def unban(self):
+        self.is_active = True
+        self.banned_at = None
+        self.ban_reason = ''
+        self.save(update_fields=['is_active', 'banned_at', 'ban_reason', 'updated_at'])
 
     def enable_two_factor(self, secret: str):
         self.two_factor_secret = secret

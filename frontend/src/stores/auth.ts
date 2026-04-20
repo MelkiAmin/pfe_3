@@ -35,9 +35,22 @@ export const useAuthStore = defineStore('auth', {
       const refreshToken = useCookie<string | null>('refreshToken').value
       const userData = useCookie<AuthUser | null>('userData').value
 
-      this.accessToken = accessToken
-      this.refreshToken = refreshToken
-      this.user = userData
+      if (accessToken && userData) {
+        this.accessToken = accessToken
+        this.refreshToken = refreshToken
+        this.user = userData
+      } else {
+        this.clearSession()
+      }
+    },
+
+    clearSession() {
+      this.user = null
+      this.accessToken = null
+      this.refreshToken = null
+      this.loading = false
+      this.error = ''
+      authSession.clear()
     },
 
     async login(payload: LoginPayload) {
@@ -81,8 +94,7 @@ export const useAuthStore = defineStore('auth', {
 
       }
       finally {
-        this.$reset()
-        authSession.clear()
+        this.clearSession()
       }
     },
 
@@ -102,6 +114,44 @@ export const useAuthStore = defineStore('auth', {
       if (safeRole === 'admin')
         return 'Admin'
       return 'Utilisateur'
+    },
+
+    async requestPasswordReset(email: string) {
+      this.loading = true
+      this.error = ''
+      try {
+        const { data } = await apiClient.post('/auth/password-reset/', { email })
+        return data
+      }
+      catch (error: any) {
+        const detail = error?.response?.data?.detail || error?.message
+        this.error = typeof detail === 'string' ? detail : 'Failed to send reset email.'
+        throw new Error(this.error)
+      }
+      finally {
+        this.loading = false
+      }
+    },
+
+    async resetPassword(email: string, code: string, newPassword: string) {
+      this.loading = true
+      this.error = ''
+      try {
+        const { data } = await apiClient.post('/auth/password-reset/confirm/', {
+          email,
+          code,
+          new_password: newPassword,
+        })
+        return data
+      }
+      catch (error: any) {
+        const detail = error?.response?.data?.detail || error?.message
+        this.error = typeof detail === 'string' ? detail : 'Failed to reset password.'
+        throw new Error(this.error)
+      }
+      finally {
+        this.loading = false
+      }
     },
   },
 })

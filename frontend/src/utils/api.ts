@@ -36,6 +36,9 @@ export const $api = ofetch.create({
     if (response.status !== 401 || requestOptions._retried)
       throw context.error
 
+    if (requestOptions._skipAuth)
+      throw context.error
+
     requestOptions._retried = true
 
     const refreshToken = getRefreshToken()
@@ -67,16 +70,6 @@ export const $api = ofetch.create({
     }
     else {
       authSession.clear()
-    }
-
-    const method = (options.method || 'GET').toUpperCase()
-    if (!requestOptions._skipAuth && RETRYABLE_METHODS.has(method)) {
-      return await ofetch(request, {
-        ...options,
-        headers: withHeaders(),
-        _skipAuth: true,
-        _retried: true,
-      } as typeof options & ApiRequestOptions)
     }
 
     throw context.error

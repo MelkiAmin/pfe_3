@@ -12,17 +12,36 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const navigationItems = computed(() => {
-  const items = [
-    { title: 'Dashboard', to: '/', icon: 'tabler-layout-dashboard' },
-    { title: 'Events', to: '/events', icon: 'tabler-ticket' },
-    { title: 'History', to: '/history', icon: 'tabler-history' },
-  ]
+  const items = []
 
-  if (authStore.role === 'admin')
-    items.push({ title: 'Validation', to: '/admin/validations', icon: 'tabler-checkup-list' }, { title: 'Status', to: '/admin/status', icon: 'tabler-chart-histogram' })
+  if (authStore.isAuthenticated) {
+    items.push(
+      { title: 'Accueil', to: '/', icon: 'tabler-home' },
+      { title: 'Evenements', to: '/events', icon: 'tabler-ticket' },
+    )
+  } else {
+    items.push(
+      { title: 'Accueil', to: '/', icon: 'tabler-home' },
+      { title: 'Evenements', to: '/events', icon: 'tabler-ticket' },
+    )
+  }
 
-  if (authStore.role === 'organizer')
-    items.push({ title: 'Status', to: '/status', icon: 'tabler-chart-bar' })
+  if (authStore.role === 'admin') {
+    items.push(
+      { title: 'Utilisateurs', to: '/admin/users', icon: 'tabler-users' },
+      { title: 'Organisateurs', to: '/admin/organizers', icon: 'tabler-building' },
+      { title: 'Approbations', to: '/admin/approvals', icon: 'tabler-user-check' },
+      { title: 'Evenements', to: '/admin/events', icon: 'tabler-calendar' },
+      { title: 'Validations', to: '/admin/validations', icon: 'tabler-checkup-list' },
+      { title: 'Statistiques', to: '/admin/status', icon: 'tabler-chart-histogram' },
+    )
+  }
+
+  if (authStore.role === 'organizer') {
+    items.push(
+      { title: 'Mon tableau de bord', to: '/status', icon: 'tabler-chart-bar' },
+    )
+  }
 
   return items
 })
