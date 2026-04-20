@@ -3,6 +3,12 @@ import AppSelect from '@/@core/components/app-form-elements/AppSelect.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { apiClient } from '@/services/http/axios'
 
+definePage({
+  meta: {
+    roles: ['admin'],
+  },
+})
+
 type UserRow = {
   id: number
   email: string

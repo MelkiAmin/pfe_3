@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
 
+definePage({
+  meta: {
+    roles: ['admin'],
+  },
+})
+
 const form = reactive({
   commission: 5,
   paymentTimeout: 30,

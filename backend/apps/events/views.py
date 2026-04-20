@@ -11,7 +11,7 @@ from .serializers import (
     EventCreateUpdateSerializer, CategorySerializer,
     FavoriteSerializer, EventReviewSerializer,
 )
-from utils.permissions import IsOrganizerOrAdmin, IsOwnerOrAdmin
+from utils.permissions import IsOrganizerOrAdmin, IsOrganizerUser, IsOwnerOrAdmin
 
 # ── Category ────────────────────────────────────────────────────────────
 @extend_schema_view(
@@ -67,7 +67,7 @@ class EventViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         if self.action == 'create':
-            return [IsOrganizerOrAdmin()]
+            return [IsOrganizerUser()]
         return [IsOwnerOrAdmin()]
 
     def get_queryset(self):

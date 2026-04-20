@@ -4,6 +4,12 @@ import AppTextarea from '@/@core/components/app-form-elements/AppTextarea.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { apiClient } from '@/services/http/axios'
 
+definePage({
+  meta: {
+    roles: ['admin'],
+  },
+})
+
 const loading = ref(true)
 const events = ref<any[]>([])
 const errorMessage = ref('')

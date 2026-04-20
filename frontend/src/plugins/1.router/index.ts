@@ -7,15 +7,6 @@ import { createRouter, createWebHistory } from 'vue-router/auto'
 import { store } from '../2.pinia'
 import { useAuthStore } from '@/stores/auth'
 
-function recursiveLayouts(route: RouteRecordRaw): RouteRecordRaw {
-  if (route.children) {
-    for (let i = 0; i < route.children.length; i++)
-      route.children[i] = recursiveLayouts(route.children[i])
-  }
-
-  return setupLayouts([route])[0]
-}
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior(to) {
@@ -24,9 +15,10 @@ const router = createRouter({
 
     return { top: 0 }
   },
-  extendRoutes: pages => [
-    ...[...pages].map(route => recursiveLayouts(route)),
-  ],
+  // Apply generated layouts once to the full route tree. Wrapping nested
+  // routes individually causes pages like /admin/status to mount the same
+  // layout multiple times.
+  extendRoutes: pages => setupLayouts(pages as RouteRecordRaw[]),
 })
 
 router.beforeEach(to => {

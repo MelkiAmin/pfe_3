@@ -21,7 +21,7 @@ const categories = ref<Category[]>([])
 const events = ref<EventListItem[]>([])
 const route = useRoute()
 
-const canCreateEvent = computed(() => ['organizer', 'admin'].includes(authStore.role))
+const canCreateEvent = computed(() => authStore.role === 'organizer')
 
 const filters = reactive({
   search: '',

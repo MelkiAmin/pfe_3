@@ -24,6 +24,14 @@ def attendee(db):
 
 
 @pytest.fixture
+def admin(db):
+    return User.objects.create_user(
+        email='admin@test.com', password='AdminPass123!',
+        first_name='Admin', last_name='User', role=User.Role.ADMIN,
+    )
+
+
+@pytest.fixture
 def category(db):
     return Category.objects.create(name='Music', slug='music')
 
@@ -95,14 +103,22 @@ class TestEventCreate:
         }, format='json')
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_event_creation_notifies_admin(self, api_client, organizer, category, django_image):
-        admin = User.objects.create_user(
-            email='admin@test.com',
-            password='AdminPass123!',
-            first_name='Admin',
-            last_name='User',
-            role=User.Role.ADMIN,
-        )
+    def test_admin_cannot_create_event(self, api_client, admin, category, django_image):
+        api_client.force_authenticate(user=admin)
+        resp = api_client.post('/api/events/', {
+            'title': 'Admin Event',
+            'description': 'Should be forbidden',
+            'category': category.id,
+            'event_type': 'in_person',
+            'cover_image': django_image,
+            'ticket_price': '20.00',
+            'ticket_quantity': 20,
+            'start_date': '2026-09-15T18:00:00Z',
+            'end_date': '2026-09-15T23:00:00Z',
+        }, format='multipart')
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_event_creation_notifies_admin(self, api_client, organizer, admin, category, django_image):
         api_client.force_authenticate(user=organizer)
         resp = api_client.post('/api/events/', {
             'title': 'Pending Event',

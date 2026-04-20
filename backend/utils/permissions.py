@@ -10,6 +10,15 @@ class IsOrganizerOrAdmin(permissions.BasePermission):
         )
 
 
+class IsOrganizerUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role == 'organizer'
+        )
+
+
 class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return (

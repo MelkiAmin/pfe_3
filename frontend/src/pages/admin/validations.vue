@@ -6,7 +6,6 @@ import type { EventListItem } from '@/services/api'
 
 definePage({
   meta: {
-    layout: 'default',
     roles: ['admin'],
   },
 })

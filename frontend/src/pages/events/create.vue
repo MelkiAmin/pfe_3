@@ -8,7 +8,7 @@ import type { Category, EventType } from '@/services/api'
 definePage({
   meta: {
     layout: 'default',
-    roles: ['organizer', 'admin'],
+    roles: ['organizer'],
   },
 })
 
@@ -17,6 +17,7 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const categories = ref<Category[]>([])
 const coverPreview = ref('')
+const formRef = ref()
 
 const form = reactive({
   title: '',
@@ -36,6 +37,45 @@ const form = reactive({
   isFree: false,
   coverImage: null as File | null,
 })
+
+const requiredRule = (value: unknown) => {
+  if (typeof value === 'number')
+    return Number.isFinite(value) || 'This field is required.'
+
+  return (value !== null && value !== undefined && String(value).trim().length > 0) || 'This field is required.'
+}
+
+const positivePriceRule = (value: unknown) => {
+  if (value === null || value === undefined || value === '')
+    return 'This field is required.'
+
+  return Number(value) >= 0 || 'Ticket price must be 0 or more.'
+}
+
+const quantityRule = (value: unknown) => {
+  if (value === null || value === undefined || value === '')
+    return 'This field is required.'
+
+  return Number(value) > 0 || 'Number of tickets must be at least 1.'
+}
+
+const fileRequiredRule = (value: unknown) => {
+  const picked = Array.isArray(value) ? value[0] : value
+  return Boolean(picked) || 'Cover image is required.'
+}
+
+const isSubmitDisabled = computed(() => (
+  isSubmitting.value
+  || !form.title.trim()
+  || !form.description.trim()
+  || !form.coverImage
+  || form.ticketPrice === ''
+  || Number(form.ticketPrice) < 0
+  || form.ticketQuantity === ''
+  || Number(form.ticketQuantity) < 1
+  || !form.startDate
+  || !form.endDate
+))
 
 const eventTypeItems = [
   { title: 'In person', value: 'in_person' },
@@ -76,6 +116,10 @@ const onCoverSelected = (files: File[] | File | null) => {
 
 const createEvent = async () => {
   errorMessage.value = ''
+  const validation = await formRef.value?.validate?.()
+  if (validation && !validation.valid)
+    return
+
   isSubmitting.value = true
 
   try {
@@ -152,13 +196,14 @@ onMounted(loadCategories)
           {{ errorMessage }}
         </VAlert>
 
-        <VForm @submit.prevent="createEvent">
+        <VForm ref="formRef" @submit.prevent="createEvent">
           <VRow>
             <VCol cols="12" md="8">
               <AppTextField
                 v-model="form.title"
                 label="Event title"
                 placeholder="Planova Summit 2026"
+                :rules="[requiredRule]"
                 required
               />
             </VCol>
@@ -179,16 +224,19 @@ onMounted(loadCategories)
                 v-model="form.description"
                 label="Description"
                 rows="5"
+                :rules="[requiredRule]"
                 required
               />
             </VCol>
 
             <VCol cols="12" md="5">
               <VFileInput
+                :model-value="form.coverImage"
                 accept="image/*"
                 label="Cover image"
                 prepend-icon="tabler-photo"
                 variant="outlined"
+                :rules="[fileRequiredRule]"
                 required
                 @update:model-value="onCoverSelected"
               />
@@ -227,6 +275,7 @@ onMounted(loadCategories)
                 type="number"
                 min="0"
                 step="0.01"
+                :rules="[positivePriceRule]"
                 required
               />
             </VCol>
@@ -237,6 +286,7 @@ onMounted(loadCategories)
                 label="Number of tickets"
                 type="number"
                 min="1"
+                :rules="[quantityRule]"
                 required
               />
             </VCol>
@@ -246,6 +296,7 @@ onMounted(loadCategories)
                 v-model="form.startDate"
                 label="Start date"
                 type="datetime-local"
+                :rules="[requiredRule]"
                 required
               />
             </VCol>
@@ -255,6 +306,7 @@ onMounted(loadCategories)
                 v-model="form.endDate"
                 label="End date"
                 type="datetime-local"
+                :rules="[requiredRule]"
                 required
               />
             </VCol>
@@ -319,6 +371,7 @@ onMounted(loadCategories)
                 <VBtn
                   color="primary"
                   type="submit"
+                  :disabled="isSubmitDisabled"
                   :loading="isSubmitting"
                 >
                   Submit for Validation

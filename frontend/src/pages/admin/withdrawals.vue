@@ -2,6 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { apiClient } from '@/services/http/axios'
 
+definePage({
+  meta: {
+    roles: ['admin'],
+  },
+})
+
 const loading = ref(false)
 const withdrawals = ref<any[]>([])
 const actionLoading = ref<number | null>(null)
