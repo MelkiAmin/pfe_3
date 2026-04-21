@@ -1,6 +1,6 @@
 # 🎟️ Planova — Système de Réservation de Billets d'Événements
 
-**Version:** 2.0 | **Auteur:** MEHDI SELLAMI — SOTETEL | **Date:** 2026
+**Version:** 2.0 | **Date:** 2026
 
 **Stack:** Django 4.2 + DRF · Vue 3 + Vuetify · PostgreSQL · Redis · Celery · Stripe
 
@@ -154,8 +154,8 @@ hotelmate/
 ## 🚀 Installation Docker <a name="docker"></a>
 
 ```bash
-git clone https://github.com/MelkiAmin/pfe-2.git
-cd pfe-2
+git clone https://github.com/MelkiAmin/pfe-3.git
+cd pfe-3
 
 # Configuration
 cp .env.example .env
