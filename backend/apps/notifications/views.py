@@ -1,5 +1,5 @@
 from rest_framework.viewsets import GenericViewSet
-from rest_framework import mixins, status, serializers
+from rest_framework import mixins, status, serializers, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, inline_serializer
@@ -39,8 +39,11 @@ class NotificationViewSet(mixins.ListModelMixin,
                           mixins.DestroyModelMixin,
                           GenericViewSet):
     serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Notification.objects.none()
         return Notification.objects.filter(recipient=self.request.user)
 
     @extend_schema(
@@ -71,7 +74,7 @@ class NotificationViewSet(mixins.ListModelMixin,
         summary='Get unread notification count',
         responses={200: unread_count_response},
     )
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def unread_count(self, request):
         count = self.get_queryset().filter(is_read=False).count()
         return Response({'unread_count': count})

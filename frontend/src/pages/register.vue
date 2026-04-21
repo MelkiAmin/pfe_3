@@ -97,7 +97,7 @@ const handleRegister = async () => {
 
   isLoading.value = true
   try {
-    await register({
+    const response = await register({
       email: form.value.email,
       first_name: form.value.firstName,
       last_name: form.value.lastName,
@@ -107,8 +107,17 @@ const handleRegister = async () => {
       role: form.value.role,
     })
 
-    otpEmail.value = form.value.email
-    showOtpDialog.value = true
+    // Check if account is pending (needs admin approval)
+    if (response?.status === 'pending') {
+      successMessage.value = 'Votre compte est créé avec succès. Vous recevrez un email après validation par un administrateur.'
+      setTimeout(() => {
+        router.replace('/login')
+      }, 3000)
+    } else {
+      // Show OTP dialog only if account is approved (auto-approved path)
+      otpEmail.value = form.value.email
+      showOtpDialog.value = true
+    }
   }
   catch (error: unknown) {
     errorMessage.value = extractErrorMessage(error)

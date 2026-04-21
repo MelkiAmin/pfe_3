@@ -1,9 +1,30 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 import pyotp
+import secrets
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.cache import cache
 from .models import User
+
+
+def send_verification_email(user):
+    """Generate OTP code and send verification email to user."""
+    code = str(secrets.randbelow(900000) + 100000)
+    cache.set(f'verify_{user.pk}', code, timeout=600)
+
+    try:
+        from apps.notifications.tasks import send_sendgrid_email
+        send_sendgrid_email(
+            to_email=user.email,
+            subject='Planova - Verify your email',
+            text_content=f'Your verification code: {code}\n(Valid for 10 minutes.)',
+        )
+    except Exception:
+        pass
+
+    return code
+
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -22,9 +43,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        role = validated_data.get('role', User.Role.ATTENDEE)
-        status = User.Status.PENDING if role == User.Role.ORGANIZER else User.Status.APPROVED
-        validated_data['status'] = status
+        validated_data['status'] = User.Status.PENDING
+        validated_data['is_active'] = False
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -61,6 +81,7 @@ class LoginSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['email'] = user.email
         token['role'] = user.role
+        token['status'] = user.status
         token['is_2fa_enabled'] = user.is_2fa_enabled
         return token
 
@@ -79,8 +100,11 @@ class LoginSerializer(TokenObtainPairSerializer):
         if not user.check_password(password):
             raise serializers.ValidationError({'detail': 'Invalid email or password.'})
 
-        if not user.is_active:
-            raise serializers.ValidationError({'detail': 'User account is disabled.'})
+        if user.status == User.Status.REJECTED:
+            raise serializers.ValidationError({
+                'detail': 'Votre compte a été rejeté. Contactez l\'administrateur.',
+                'status': 'rejected'
+            })
 
         if user.status == User.Status.PENDING:
             raise serializers.ValidationError({
@@ -88,11 +112,8 @@ class LoginSerializer(TokenObtainPairSerializer):
                 'status': 'pending'
             })
 
-        if user.status == User.Status.REJECTED:
-            raise serializers.ValidationError({
-                'detail': 'Votre compte a été rejeté. Contactez l\'administrateur.',
-                'status': 'rejected'
-            })
+        if not user.is_active:
+            raise serializers.ValidationError({'detail': 'User account is disabled.'})
 
         self.user = user
         otp_code = attrs.get('otp_code')

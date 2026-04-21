@@ -25,6 +25,7 @@ export type AdminUser = AuthUser & {
   is_active: boolean
   is_banned: boolean
   status: AdminUserStatus
+  account_status: AdminUserStatus
   ban_reason: string
   banned_at: string | null
   is_2fa_enabled: boolean

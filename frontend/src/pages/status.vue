@@ -12,16 +12,20 @@ definePage({
 const loading = ref(true)
 const events = ref<EventListItem[]>([])
 
-const statusCards = computed(() => ([
-  { title: 'Pending', value: events.value.filter(event => event.status === 'pending').length, color: 'warning' },
-  { title: 'Approved', value: events.value.filter(event => event.status === 'approved').length, color: 'success' },
-  { title: 'Rejected', value: events.value.filter(event => event.status === 'rejected').length, color: 'error' },
-]))
+const statusCards = computed(() => {
+  const eventList = events.value || []
+  return [
+    { title: 'Pending', value: eventList.filter(event => event.status === 'pending').length, color: 'warning' },
+    { title: 'Approved', value: eventList.filter(event => event.status === 'approved').length, color: 'success' },
+    { title: 'Rejected', value: eventList.filter(event => event.status === 'rejected').length, color: 'error' },
+  ]
+})
 
 const load = async () => {
   loading.value = true
   try {
-    events.value = await eventsApi.list()
+    const response = await eventsApi.list()
+    events.value = response.results || response || []
   }
   catch {
     events.value = []

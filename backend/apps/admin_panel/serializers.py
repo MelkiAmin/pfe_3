@@ -31,50 +31,65 @@ class AdminUserListSerializer(serializers.ModelSerializer):
         ]
 
     def get_account_status(self, obj):
-        return 'banned' if obj.is_banned else 'active'
+        if not obj.is_active:
+            return 'banned'
+        return 'active'
 
 
 class AdminUserUpdateSerializer(serializers.ModelSerializer):
-    status = serializers.ChoiceField(choices=['active', 'banned'], required=False)
+    role = serializers.ChoiceField(choices=[], required=False)
+    account_status = serializers.ChoiceField(choices=['active', 'banned'], required=False)
 
     class Meta:
         model = User
-        fields = ['email', 'first_name', 'last_name', 'phone', 'role', 'status']
+        fields = ['email', 'first_name', 'last_name', 'phone', 'role', 'account_status']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['role'].choices = User.Role.choices
 
     def validate_role(self, value):
+        if value is None:
+            return value
         request = self.context.get('request')
-        if request and request.user.pk == self.instance.pk and value != User.Role.ADMIN:
+        if request and self.instance and request.user.pk == self.instance.pk and value != User.Role.ADMIN:
             raise serializers.ValidationError('You cannot remove your own admin role.')
         return value
 
     def validate(self, attrs):
         request = self.context.get('request')
-        status_value = attrs.get('status')
-        if request and request.user.pk == self.instance.pk and status_value == 'banned':
-            raise serializers.ValidationError({'status': 'You cannot ban your own account.'})
+        account_status = attrs.get('account_status')
+        if request and self.instance and request.user.pk == self.instance.pk and account_status == 'banned':
+            raise serializers.ValidationError({'account_status': 'You cannot ban your own account.'})
         return attrs
 
     def update(self, instance, validated_data):
-        status_value = validated_data.pop('status', None)
-        role = validated_data.get('role')
+        account_status = validated_data.pop('account_status', None)
+        role = validated_data.pop('role', None)
+        phone = validated_data.get('phone')
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.email = validated_data.get('email', instance.email)
+        instance.phone = phone if phone is not None else instance.phone
 
         if role is not None:
+            instance.role = role
             instance.is_staff = role == User.Role.ADMIN
             if role != User.Role.ADMIN:
                 instance.is_superuser = False
 
-        if status_value == 'banned':
-            instance.is_active = False
-            if not instance.banned_at:
-                from django.utils import timezone
-                instance.banned_at = timezone.now()
-        elif status_value == 'active':
-            instance.is_active = True
-            instance.banned_at = None
-            instance.ban_reason = ''
+        if account_status is not None:
+            if account_status == 'banned':
+                instance.is_active = False
+                if not instance.banned_at:
+                    from django.utils import timezone
+                    instance.banned_at = timezone.now()
+                    instance.ban_reason = 'Banned by admin'
+            elif account_status == 'active':
+                instance.is_active = True
+                instance.banned_at = None
+                instance.ban_reason = ''
 
         instance.save()
         return instance

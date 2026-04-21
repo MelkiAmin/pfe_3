@@ -8,16 +8,17 @@ definePage({
   },
 })
 
-interface PendingOrganizer {
+interface PendingUser {
   id: number
   email: string
   first_name: string
   last_name: string
   phone: string
+  role: string
   created_at: string
 }
 
-const organizers = ref<PendingOrganizer[]>([])
+const pendingUsers = ref<PendingUser[]>([])
 const loading = ref(false)
 const snackbar = ref(false)
 const snackbarText = ref('')
@@ -27,10 +28,17 @@ const rejectDialog = ref(false)
 const selectedId = ref<number | null>(null)
 const rejectNote = ref('')
 
+const roleLabels: Record<string, string> = {
+  attendee: 'Participant',
+  organizer: 'Organisateur',
+  admin: 'Administrateur',
+}
+
 const headers = [
   { title: 'Nom', key: 'name', sortable: false },
   { title: 'Email', key: 'email', sortable: false },
   { title: 'Telephone', key: 'phone', sortable: false },
+  { title: 'Role', key: 'role', sortable: false },
   { title: 'Date inscription', key: 'created_at', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const },
 ]
@@ -38,7 +46,7 @@ const headers = [
 const fetchPending = async () => {
   loading.value = true
   try {
-    organizers.value = await authApi.listPendingOrganizers()
+    pendingUsers.value = await authApi.listPendingUsers()
   }
   catch (error: any) {
     snackbarText.value = error?.message || 'Erreur lors du chargement'
@@ -64,9 +72,9 @@ const openReject = (id: number) => {
 const handleApprove = async () => {
   if (!selectedId.value) return
   try {
-    const response = await authApi.approveOrganizer(selectedId.value)
+    const response = await authApi.approveUser(selectedId.value)
     console.log('Approve response:', response)
-    snackbarText.value = response.detail || 'Organisateur approuve'
+    snackbarText.value = response.detail || 'Utilisateur approuve'
     snackbarColor.value = 'success'
     snackbar.value = true
     approveDialog.value = false
@@ -84,9 +92,9 @@ const handleApprove = async () => {
 const handleReject = async () => {
   if (!selectedId.value) return
   try {
-    const response = await authApi.rejectOrganizer(selectedId.value, rejectNote.value)
+    const response = await authApi.rejectUser(selectedId.value, rejectNote.value)
     console.log('Reject response:', response)
-    snackbarText.value = response.detail || 'Organisateur rejete'
+    snackbarText.value = response.detail || 'Utilisateur rejete'
     snackbarColor.value = 'success'
     snackbar.value = true
     rejectDialog.value = false
@@ -108,20 +116,23 @@ onMounted(fetchPending)
   <div>
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-4">Approbations Organisateurs</h1>
+        <h1 class="text-h4 mb-4">Approbations</h1>
       </v-col>
     </v-row>
 
     <v-card class="section-card">
       <v-data-table
         :headers="headers"
-        :items="organizers"
+        :items="pendingUsers"
         :loading="loading"
-        :no-data-text="organizers.length === 0 ? 'Aucun organisateur en attente' : undefined"
+        :no-data-text="pendingUsers.length === 0 ? 'Aucun utilisateur en attente' : undefined"
         class="elevation-0"
       >
         <template #item.name="{ item }">
           {{ item.first_name }} {{ item.last_name }}
+        </template>
+        <template #item.role="{ item }">
+          {{ roleLabels[item.role] || item.role }}
         </template>
         <template #item.created_at="{ item }">
           {{ new Date(item.created_at).toLocaleDateString('fr-FR') }}
@@ -154,7 +165,7 @@ onMounted(fetchPending)
       <v-card>
         <v-card-title>Confirmer l'approbation</v-card-title>
         <v-card-text>
-          Etes-vous sur de vouloir approuver cet organisateur ?
+          Etes-vous sur de vouloir approuver cet utilisateur ?
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -166,7 +177,7 @@ onMounted(fetchPending)
 
     <v-dialog v-model="rejectDialog" max-width="400">
       <v-card>
-        <v-card-title>Rejeter l'organisateur</v-card-title>
+        <v-card-title>Rejeter l'utilisateur</v-card-title>
         <v-card-text>
           <v-textarea
             v-model="rejectNote"

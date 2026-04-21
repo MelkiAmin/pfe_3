@@ -278,7 +278,6 @@ class ListPendingOrganizersView(APIView):
 
     def get(self, request):
         users = User.objects.filter(
-            role=User.Role.ORGANIZER,
             status=User.Status.PENDING,
         ).order_by('-created_at')
         data = [{
@@ -287,6 +286,7 @@ class ListPendingOrganizersView(APIView):
             'first_name': u.first_name,
             'last_name': u.last_name,
             'phone': u.phone,
+            'role': u.role,
             'created_at': u.created_at.isoformat(),
         } for u in users]
         return Response(data)
@@ -297,13 +297,25 @@ class ApproveOrganizerView(APIView):
 
     def post(self, request, user_id):
         try:
-            user = User.objects.get(id=user_id, role=User.Role.ORGANIZER)
+            user = User.objects.get(id=user_id, status=User.Status.PENDING)
         except User.DoesNotExist:
-            return Response({'detail': 'Organizer not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         user.status = User.Status.APPROVED
-        user.save(update_fields=['status', 'updated_at'])
-        return Response({'detail': 'Organizer approved.', 'status': user.status})
+        user.is_active = True
+        user.save(update_fields=['status', 'is_active', 'updated_at'])
+
+        if user.role == User.Role.ORGANIZER:
+            try:
+                from apps.accounts.serializers import send_verification_email
+                send_verification_email(user)
+            except Exception:
+                pass
+
+        return Response({
+            'detail': f'{user.role.capitalize()} approved.',
+            'status': user.status
+        })
 
 
 class RejectOrganizerView(APIView):
@@ -311,12 +323,12 @@ class RejectOrganizerView(APIView):
 
     def post(self, request, user_id):
         try:
-            user = User.objects.get(id=user_id, role=User.Role.ORGANIZER)
+            user = User.objects.get(id=user_id, status=User.Status.PENDING)
         except User.DoesNotExist:
-            return Response({'detail': 'Organizer not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         note = request.data.get('note', '')
         user.status = User.Status.REJECTED
         user.status_note = note
         user.save(update_fields=['status', 'status_note', 'updated_at'])
-        return Response({'detail': 'Organizer rejected.', 'status': user.status})
+        return Response({'detail': f'{user.role.capitalize()} rejected.', 'status': user.status})

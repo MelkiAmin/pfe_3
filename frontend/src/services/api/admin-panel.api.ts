@@ -18,7 +18,7 @@ export type AdminUserUpdatePayload = {
   last_name?: string
   phone?: string
   role?: 'attendee' | 'organizer' | 'admin'
-  status?: AdminUserStatus
+  account_status?: AdminUserStatus
 }
 
 export type AdminOrganizerListParams = {

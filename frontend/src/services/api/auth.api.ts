@@ -110,17 +110,17 @@ export const authApi = {
     })
   },
 
-  listPendingOrganizers() {
-    return $api<{ id: number; email: string; first_name: string; last_name: string; phone: string; created_at: string }[]>('/auth/organizers/pending/')
+  listPendingUsers() {
+    return $api<{ id: number; email: string; first_name: string; last_name: string; phone: string; role: string; created_at: string }[]>('/auth/organizers/pending/')
   },
 
-  approveOrganizer(userId: number) {
+  approveUser(userId: number) {
     return $api<{ detail: string; status: string }>(`/auth/organizers/${userId}/approve/`, {
       method: 'POST',
     })
   },
 
-  rejectOrganizer(userId: number, note: string) {
+  rejectUser(userId: number, note: string) {
     return $api<{ detail: string; status: string }>(`/auth/organizers/${userId}/reject/`, {
       method: 'POST',
       body: { note },

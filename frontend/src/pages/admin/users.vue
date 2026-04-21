@@ -28,7 +28,7 @@ const editForm = reactive({
   last_name: '',
   phone: '',
   role: 'attendee' as UserRole,
-  status: 'active' as AdminUserStatus,
+  account_status: 'active' as AdminUserStatus,
 })
 
 const headers = [
@@ -106,7 +106,7 @@ const openEditDialog = (user: AdminUser) => {
   editForm.last_name = user.last_name
   editForm.phone = user.phone || ''
   editForm.role = user.role
-  editForm.status = user.status
+  editForm.account_status = user.status === 'active' ? 'active' : 'banned'
   editDialog.value = true
 }
 
@@ -260,8 +260,8 @@ onUnmounted(() => {
 
         <template #item.status="{ item }">
           <div class="d-flex flex-column gap-1">
-            <VChip :color="statusColor(item.status)" size="small" variant="tonal">
-              {{ item.status === 'active' ? 'Actif' : 'Banni' }}
+            <VChip :color="statusColor(item.account_status)" size="small" variant="tonal">
+              {{ item.account_status === 'active' ? 'Actif' : 'Banni' }}
             </VChip>
             <span v-if="item.ban_reason" class="text-xs text-medium-emphasis">
               {{ item.ban_reason }}
@@ -286,7 +286,7 @@ onUnmounted(() => {
                 <VListItem @click="openEditDialog(item)">
                   <VListItemTitle>Modifier</VListItemTitle>
                 </VListItem>
-                <VListItem v-if="item.status === 'active'" @click="openConfirmDialog('ban', item)">
+                <VListItem v-if="item.account_status === 'active'" @click="openConfirmDialog('ban', item)">
                   <VListItemTitle>Bannir</VListItemTitle>
                 </VListItem>
                 <VListItem v-else @click="openConfirmDialog('unban', item)">
@@ -323,7 +323,7 @@ onUnmounted(() => {
               <AppSelect v-model="editForm.role" label="Role" :items="roleOptions.slice(1)" />
             </VCol>
             <VCol cols="12" md="3">
-              <AppSelect v-model="editForm.status" label="Statut" :items="statusOptions.slice(1)" />
+              <AppSelect v-model="editForm.account_status" label="Statut" :items="statusOptions.slice(1)" />
             </VCol>
           </VRow>
         </VCardText>

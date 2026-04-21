@@ -6,6 +6,7 @@ from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce, TruncDate
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.views.generic import TemplateView
 from rest_framework import generics, filters, permissions, status
 from rest_framework.pagination import PageNumberPagination
@@ -314,10 +315,18 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+
+        print("DATA RECEIVED:", request.data)
+        print("USER BEFORE:", instance.email, "role:", instance.role, "is_active:", instance.is_active, "status:", instance.status)
+
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(AdminUserListSerializer(instance).data)
+        updated_instance = serializer.save()
+
+        print("USER AFTER:", updated_instance.email, "role:", updated_instance.role, "is_active:", updated_instance.is_active, "status:", updated_instance.status)
+
+        response_data = AdminUserListSerializer(updated_instance).data
+        return Response(response_data)
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
@@ -345,7 +354,13 @@ class AdminUserBanView(APIView):
 
         serializer = AdminUserBanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user.ban(serializer.validated_data.get('reason', ''))
+        reason = serializer.validated_data.get('reason', 'Banned by admin')
+
+        user.is_active = False
+        user.banned_at = timezone.now()
+        user.ban_reason = reason
+        user.save(update_fields=['is_active', 'banned_at', 'ban_reason', 'updated_at'])
+
         return Response(AdminUserListSerializer(user).data)
 
 

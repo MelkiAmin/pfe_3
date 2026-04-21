@@ -92,15 +92,25 @@ export const useAdminUsersStore = defineStore('admin-users', {
     async updateUser(userId: number, payload: UpdateUserPayload) {
       this.saving = true
       try {
-        const updatedUser = await adminPanelApi.updateUser(userId, payload)
-        this.users = this.users.map(user => user.id === userId ? updatedUser : user)
+        console.log('Updating user:', userId, 'payload:', payload)
+        const response = await adminPanelApi.updateUser(userId, payload)
+        console.log('Update response:', response)
+
+        if (!response || !response.id) {
+          throw new Error('Invalid response from server')
+        }
+
+        this.users = this.users.map(user => user.id === userId ? response : user)
         if (this.selectedUser?.id === userId)
-          this.selectedUser = updatedUser
+          this.selectedUser = response
+
         this.notify('Utilisateur mis a jour avec succes.')
-        return updatedUser
+        return response
       }
       catch (error: any) {
-        this.notify(error?.data?.detail || error?.message || 'Impossible de mettre a jour cet utilisateur.', 'error')
+        console.error('Update error:', error)
+        const message = error?.response?.data?.detail || error?.message || 'Impossible de mettre a jour cet utilisateur.'
+        this.notify(message, 'error')
         throw error
       }
       finally {
@@ -111,12 +121,14 @@ export const useAdminUsersStore = defineStore('admin-users', {
     async deleteUser(userId: number) {
       this.deleting = true
       try {
+        console.log('Deleting user:', userId)
         await adminPanelApi.removeUser(userId)
         this.notify('Compte desactive avec succes.')
         await this.fetchUsers()
       }
       catch (error: any) {
-        this.notify(error?.data?.detail || error?.message || 'Impossible de desactiver cet utilisateur.', 'error')
+        console.error('Delete error:', error)
+        this.notify(error?.response?.data?.detail || error?.message || 'Impossible de desactiver cet utilisateur.', 'error')
         throw error
       }
       finally {
@@ -127,12 +139,15 @@ export const useAdminUsersStore = defineStore('admin-users', {
     async banUser(userId: number, reason: string) {
       this.saving = true
       try {
-        await adminPanelApi.banUser(userId, reason)
+        console.log('Banning user:', userId, 'reason:', reason)
+        const result = await adminPanelApi.banUser(userId, reason)
+        console.log('Ban result:', result)
         this.notify('Utilisateur banni avec succes.', 'warning')
         await this.fetchUsers()
       }
       catch (error: any) {
-        this.notify(error?.data?.detail || error?.message || 'Impossible de bannir cet utilisateur.', 'error')
+        console.error('Ban error:', error)
+        this.notify(error?.response?.data?.detail || error?.message || 'Impossible de bannir cet utilisateur.', 'error')
         throw error
       }
       finally {
@@ -143,12 +158,19 @@ export const useAdminUsersStore = defineStore('admin-users', {
     async unbanUser(userId: number) {
       this.saving = true
       try {
-        await adminPanelApi.unbanUser(userId)
+        const userIdNum = Number(userId)
+        console.log('Calling unbanUser with ID:', userIdNum, 'type:', typeof userIdNum)
+
+        const result = await adminPanelApi.unbanUser(userIdNum)
+        console.log('Unban result:', result)
+
         this.notify('Utilisateur reactive avec succes.')
         await this.fetchUsers()
       }
       catch (error: any) {
-        this.notify(error?.data?.detail || error?.message || 'Impossible de reactiver cet utilisateur.', 'error')
+        console.error('Unban error full:', JSON.stringify(error, null, 2))
+        const message = error?.response?.data?.detail || error?.message || 'Erreur lors de la reactivation'
+        this.notify(message, 'error')
         throw error
       }
       finally {
