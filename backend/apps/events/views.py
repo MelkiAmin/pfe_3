@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions, filters, mixins, status, serializers as drf_serializers
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
@@ -10,7 +10,9 @@ from .serializers import (
     EventListSerializer, EventDetailSerializer,
     EventCreateUpdateSerializer, CategorySerializer,
     FavoriteSerializer, EventReviewSerializer,
+    ChatbotMessageSerializer, ChatbotResponseSerializer,
 )
+from .recommendation_engine import recommend_events, get_popular_events, get_user_preferred_categories
 from utils.permissions import IsOrganizerOrAdmin, IsOrganizerUser, IsOwnerOrAdmin
 
 # ── Category ────────────────────────────────────────────────────────────

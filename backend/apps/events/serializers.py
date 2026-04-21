@@ -153,3 +153,13 @@ class EventReviewSerializer(serializers.ModelSerializer):
             review.comment = validated_data.get('comment', '')
             review.save()
         return review
+
+
+class ChatbotMessageSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=500)
+
+
+class ChatbotResponseSerializer(serializers.Serializer):
+    reply = serializers.CharField()
+    events = EventListSerializer(many=True)
+    detected_category = serializers.CharField(allow_null=True)
