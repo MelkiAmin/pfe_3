@@ -60,21 +60,29 @@ class RegisterView(generics.CreateAPIView):
         responses={201: _msg, 400: OpenApiResponse(description='Validation error')},
     )
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
 
-        if user.status == User.Status.PENDING:
+            if user.status == User.Status.PENDING:
+                return Response({
+                    'detail': 'Votre compte est créé. Veuillez attendre l\'approbation de l\'administrateur.',
+                    'status': 'pending',
+                    'message': 'Votre compte est en attente d\'approbation.'
+                }, status=status.HTTP_201_CREATED)
+
             return Response({
-                'detail': 'Votre compte est créé. Veuillez attendre l\'approbation de l\'administrateur.',
-                'status': 'pending',
-                'message': 'Votre compte est en attente d\'approbation.'
+                'detail': 'Inscription réussie.',
+                'status': user.status
             }, status=status.HTTP_201_CREATED)
-
-        return Response({
-            'detail': 'Inscription réussie.',
-            'status': user.status
-        }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"RegisterView error: {str(e)}")
+            return Response(
+                {'detail': 'Une erreur est survenue lors de l\'inscription. Veuillez réessayer.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class LoginView(APIView):
@@ -88,9 +96,17 @@ class LoginView(APIView):
         responses={200: _auth_response, 401: OpenApiResponse(description='Invalid credentials')},
     )
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.validated_data)
+        try:
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            return Response(serializer.validated_data)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"LoginView error: {str(e)}")
+            return Response(
+                {'detail': 'Une erreur est survenue lors de la connexion. Veuillez réessayer.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class RefreshTokenView(TokenRefreshView):

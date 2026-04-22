@@ -64,7 +64,6 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if self.instance is None:
             required_fields = {
-                'cover_image': attrs.get('cover_image'),
                 'title': attrs.get('title'),
                 'description': attrs.get('description'),
                 'ticket_price': attrs.get('ticket_price'),
@@ -72,9 +71,17 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
             }
             missing = [field for field, value in required_fields.items() if value in [None, '', []]]
             if missing:
-                raise serializers.ValidationError({
-                    field: 'This field is required.' for field in missing
-                })
+                error_messages = {}
+                for field in missing:
+                    if field == 'title':
+                        error_messages[field] = 'Le titre est requis'
+                    elif field == 'description':
+                        error_messages[field] = 'La description est requise'
+                    elif field == 'ticket_price':
+                        error_messages[field] = 'Le prix du billet est requis'
+                    elif field == 'ticket_quantity':
+                        error_messages[field] = 'La quantité de billets est requise'
+                raise serializers.ValidationError(error_messages)
 
             attrs['status'] = Event.Status.PENDING
 
@@ -156,10 +163,19 @@ class EventReviewSerializer(serializers.ModelSerializer):
 
 
 class ChatbotMessageSerializer(serializers.Serializer):
-    message = serializers.CharField(max_length=500)
+    message = serializers.CharField(max_length=500, required=True)
 
 
 class ChatbotResponseSerializer(serializers.Serializer):
-    reply = serializers.CharField()
+    reply = serializers.CharField(required=False, allow_blank=True)
+    response = serializers.CharField(required=False, allow_blank=True)
     events = EventListSerializer(many=True)
-    detected_category = serializers.CharField(allow_null=True)
+    detected_category = serializers.CharField(required=False, allow_null=True)
+    intent = serializers.CharField(required=False, allow_blank=True)
+    filters = serializers.DictField(required=False)
+
+
+class EventStatusSummarySerializer(serializers.Serializer):
+    pending_count = serializers.IntegerField()
+    approved_count = serializers.IntegerField()
+    rejected_count = serializers.IntegerField()

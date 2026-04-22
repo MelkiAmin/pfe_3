@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import EventCard from '@/components/events/EventCard.vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useAuthStore } from '@/stores/auth'
+import { $api } from '@/utils/api'
+import type { EventListItem } from '@/services/api'
 
 definePage({
   meta: {
@@ -15,6 +17,9 @@ definePage({
 const catalogStore = useCatalogStore()
 const authStore = useAuthStore()
 const { featuredEvents, events, categories, loading, featuredLoading, categoriesLoading } = storeToRefs(catalogStore)
+
+const recommendedEvents = ref<EventListItem[]>([])
+const recommendedLoading = ref(false)
 
 const isLoggedIn = computed(() => authStore.isAuthenticated)
 const userRole = computed(() => authStore.role)
@@ -35,11 +40,30 @@ const features = [
   { title: 'Validation rapide', description: 'Acces instantane aux evenements', icon: 'tabler-check' },
 ]
 
+const fetchRecommendations = async () => {
+  if (!authStore.isAuthenticated) return
+  
+  recommendedLoading.value = true
+  try {
+    const response = await $api<{ recommendations: EventListItem[] }>('/events/recommendations/', { _skipAuth: false })
+    if (response && response.recommendations) {
+      recommendedEvents.value = response.recommendations
+    }
+  }
+  catch {
+    console.log('Recommendations not available')
+  }
+  finally {
+    recommendedLoading.value = false
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     catalogStore.fetchFeaturedEvents(),
     catalogStore.fetchEvents(),
     catalogStore.fetchCategories(),
+    fetchRecommendations(),
   ])
 })
 </script>
@@ -135,6 +159,37 @@ onMounted(async () => {
         <VRow class="mt-6">
           <VCol
             v-for="event in featuredEvents"
+            :key="event.id"
+            cols="12"
+            sm="6"
+            lg="4"
+          >
+            <EventCard :event="event" />
+          </VCol>
+        </VRow>
+      </div>
+    </section>
+
+    <!-- Recommended Events (for authenticated users) -->
+    <section v-if="isLoggedIn && (recommendedEvents.length > 0 || recommendedLoading)" class="recommended-section">
+      <div class="container">
+        <div class="section-header d-flex justify-space-between align-center">
+          <div>
+            <h2 class="text-h4">
+              <VIcon icon="tabler-sparkles" class="mr-2" color="warning" />
+              Recommendés pour vous
+            </h2>
+            <p class="text-medium-emphasis mb-0">Basés sur vos préférences et historique</p>
+          </div>
+        </div>
+        <VRow v-if="recommendedLoading" class="mt-6">
+          <VCol v-for="n in 3" :key="n" cols="12" sm="6" lg="4">
+            <VSkeletonLoader type="card" height="350" />
+          </VCol>
+        </VRow>
+        <VRow v-else class="mt-6">
+          <VCol
+            v-for="event in recommendedEvents"
             :key="event.id"
             cols="12"
             sm="6"
@@ -279,6 +334,12 @@ onMounted(async () => {
 /* Featured */
 .featured-section {
   padding: 6rem 0;
+}
+
+/* Recommended */
+.recommended-section {
+  padding: 6rem 0;
+  background: linear-gradient(180deg, rgba(var(--v-theme-primary), 0.03) 0%, transparent 100%);
 }
 
 /* CTA */

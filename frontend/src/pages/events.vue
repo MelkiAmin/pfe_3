@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AppSelect from '@/@core/components/app-form-elements/AppSelect.vue'
 import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
 import EventCard from '@/components/events/EventCard.vue'
+import EventForm from '@/components/events/EventForm.vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useAuthStore } from '@/stores/auth'
 
@@ -22,6 +23,11 @@ const searchInput = ref(filters.value.search)
 const showMobileFilters = ref(false)
 
 const canCreateEvent = computed(() => authStore.role === 'organizer')
+const eventForm = ref<typeof EventForm | null>(null)
+
+const handleEventCreated = () => {
+  catalogStore.fetchEvents({})
+}
 
 const cityInput = ref(filters.value.city)
 const eventTypeInput = ref(filters.value.event_type)
@@ -128,7 +134,7 @@ onUnmounted(() => {
           color="primary"
           prepend-icon="tabler-plus"
           rounded="pill"
-          to="/events/create"
+          @click="eventForm?.open()"
         >
           Ajouter un evenement
         </VBtn>
@@ -299,6 +305,8 @@ onUnmounted(() => {
     >
       {{ snackbar.message }}
     </VSnackbar>
+
+    <EventForm ref="eventForm" @submit="handleEventCreated" />
   </div>
 </template>
 

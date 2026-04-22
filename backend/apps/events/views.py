@@ -11,9 +11,11 @@ from .serializers import (
     EventCreateUpdateSerializer, CategorySerializer,
     FavoriteSerializer, EventReviewSerializer,
     ChatbotMessageSerializer, ChatbotResponseSerializer,
+    EventStatusSummarySerializer,
 )
 from .recommendation_engine import recommend_events, get_popular_events, get_user_preferred_categories
-from utils.permissions import IsOrganizerOrAdmin, IsOrganizerUser, IsOwnerOrAdmin
+from .chatbot_service import chatbot_service
+from utils.permissions import IsOrganizerOrAdmin, IsOrganizerUser, IsOwnerOrAdmin, IsAdminUser
 
 # ── Category ────────────────────────────────────────────────────────────
 @extend_schema_view(
@@ -201,6 +203,91 @@ class EventViewSet(viewsets.ModelViewSet):
         return Response(EventDetailSerializer(event, context={'request': request}).data)
 
     @extend_schema(
+        tags=['Events'], summary='Get organizer event status summary',
+    )
+    @action(detail=False, methods=['get'], permission_classes=[IsOrganizerOrAdmin], url_path='status-summary')
+    def status_summary(self, request):
+        user = request.user
+        if user.role == 'admin':
+            pending_count = Event.objects.filter(status=Event.Status.PENDING).count()
+            approved_count = Event.objects.filter(status=Event.Status.APPROVED).count()
+            rejected_count = Event.objects.filter(status=Event.Status.REJECTED).count()
+        else:
+            pending_count = Event.objects.filter(organizer=user, status=Event.Status.PENDING).count()
+            approved_count = Event.objects.filter(organizer=user, status=Event.Status.APPROVED).count()
+            rejected_count = Event.objects.filter(organizer=user, status=Event.Status.REJECTED).count()
+        
+        return Response({
+            'pending_count': pending_count,
+            'approved_count': approved_count,
+            'rejected_count': rejected_count,
+        })
+
+    @extend_schema(
+        tags=['Events'], summary='Get pending events for admin',
+        responses={200: EventListSerializer(many=True)},
+    )
+    @action(detail=False, methods=['get'], permission_classes=[IsOrganizerOrAdmin], url_path='pending')
+    def pending_events(self, request):
+        if request.user.role == 'admin':
+            qs = Event.objects.filter(status=Event.Status.PENDING).select_related('category', 'organizer')
+        else:
+            qs = Event.objects.filter(organizer=request.user, status=Event.Status.PENDING).select_related('category', 'organizer')
+        
+        serializer = EventListSerializer(qs, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @extend_schema(
+        tags=['Events'], summary='Approve an event',
+        responses={200: EventDetailSerializer()},
+    )
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], url_path='approve')
+    def approve_event(self, request, pk=None):
+        from apps.notifications.models import Notification
+        from apps.notifications.tasks import create_notification
+        
+        event = self.get_object()
+        event.status = Event.Status.APPROVED
+        event.save(update_fields=['status', 'updated_at'])
+        
+        create_notification(
+            recipient=event.organizer,
+            notification_type=Notification.Type.EVENT_APPROVED,
+            title=f'Event approved: {event.title}',
+            message=f'Your event "{event.title}" has been approved and is now live!',
+            data={'event_id': event.id},
+        )
+        
+        return Response(EventDetailSerializer(event, context={'request': request}).data)
+
+    @extend_schema(
+        tags=['Events'], summary='Reject an event',
+        request=inline_serializer('RejectEvent', fields={
+            'reason': drf_serializers.CharField(required=False, allow_blank=True),
+        }),
+        responses={200: EventDetailSerializer()},
+    )
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], url_path='reject')
+    def reject_event(self, request, pk=None):
+        from apps.notifications.models import Notification
+        from apps.notifications.tasks import create_notification
+        
+        event = self.get_object()
+        reason = request.data.get('reason', '')
+        event.status = Event.Status.REJECTED
+        event.save(update_fields=['status', 'updated_at'])
+        
+        create_notification(
+            recipient=event.organizer,
+            notification_type=Notification.Type.EVENT_REJECTED,
+            title=f'Event rejected: {event.title}',
+            message=f'Your event "{event.title}" was not approved. Reason: {reason or "Please contact support for details."}',
+            data={'event_id': event.id},
+        )
+        
+        return Response(EventDetailSerializer(event, context={'request': request}).data)
+
+    @extend_schema(
         tags=['Events'], summary='Get my organized events',
         responses={200: EventListSerializer(many=True)},
     )
@@ -249,3 +336,191 @@ class EventReviewViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return EventReview.objects.select_related('user', 'event').all()
+
+
+# ── Recommendations ────────────────────────────────────────────────────────
+@extend_schema(
+    tags=['Recommendations'],
+    summary='Get personalized event recommendations',
+    parameters=[
+        OpenApiParameter('limit', int, OpenApiParameter.QUERY, description='Number of events to return (default 10)'),
+    ],
+)
+@action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticatedOrReadOnly])
+def recommendations(self, request):
+    from django.utils import timezone
+    from django.db.models import Count, Q
+    
+    try:
+        limit = int(request.query_params.get('limit', 10))
+        limit = max(1, min(limit, 20))
+    except (ValueError, TypeError):
+        limit = 10
+    
+    recommended = recommend_events(request.user, limit=limit)
+    serializer = EventListSerializer(recommended, many=True, context={'request': request})
+    return Response({
+        'recommendations': serializer.data,
+        'count': len(recommended),
+    })
+
+
+@extend_schema(
+    tags=['Recommendations'],
+    summary='Get popular events',
+    parameters=[
+        OpenApiParameter('limit', int, OpenApiParameter.QUERY, description='Number of events to return (default 10)'),
+    ],
+)
+@action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], url_path='popular')
+def popular_events(self, request):
+    try:
+        limit = int(request.query_params.get('limit', 10))
+        limit = max(1, min(limit, 20))
+    except (ValueError, TypeError):
+        limit = 10
+    
+    events = get_popular_events(limit)
+    serializer = EventListSerializer(events, many=True, context={'request': request})
+    return Response({
+        'popular': serializer.data,
+        'count': len(events),
+    })
+
+
+@extend_schema(
+    tags=['Recommendations'],
+    summary='Get similar events',
+    parameters=[
+        OpenApiParameter('limit', int, OpenApiParameter.QUERY, description='Number of events to return (default 5)'),
+    ],
+)
+@action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny], url_path='similar')
+def similar_events(self, request, pk=None):
+    from .recommendation_engine import get_similar_events
+    
+    try:
+        limit = int(request.query_params.get('limit', 5))
+        limit = max(1, min(limit, 10))
+    except (ValueError, TypeError):
+        limit = 5
+    
+    event = self.get_object()
+    similar = get_similar_events(event, limit=limit)
+    serializer = EventListSerializer(similar, many=True, context={'request': request})
+    return Response({
+        'similar': serializer.data,
+        'count': len(similar),
+    })
+
+
+EventViewSet.recommendations = recommendations
+EventViewSet.popular_events = popular_events
+EventViewSet.similar_events = similar_events
+
+
+# ── Chatbot AI ────────────────────────────────────────────────────────────
+class ChatbotViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    CATEGORY_KEYWORDS = {
+        'concert': ['concert', 'musique', 'musical', 'festival', 'guitar', 'piano', 'rock', 'jazz', ' RAP', 'chanson'],
+        'sport': ['sport', 'football', 'basket', 'tennis', 'match', 'rugby', 'athletisme', 'competition'],
+        'business': ['business', 'entreprise', 'professionnel', 'conference', 'formation', 'startup', 'networking'],
+        'culturel': ['culture', 'art', 'theatre', 'musée', 'exposition', 'peinture', 'danse', 'spectacle'],
+        'technologie': ['tech', 'technologie', 'informatique', 'coding', 'developer', 'IA', 'AI', 'digital'],
+        'gastronomie': ['gastronomie', 'food', 'restaurant', 'cuisine', 'vin', 'degustation'],
+        'education': ['education', 'formation', 'cours', 'workshop', 'séminaire', 'conference'],
+    }
+    
+    def _detect_category(self, message: str) -> tuple[str | None, list[Category]]:
+        from django.utils.text import slugify
+        from django.utils import timezone
+        
+        message_lower = message.lower()
+        
+        for category_name, keywords in self.CATEGORY_KEYWORDS.items():
+            if any(kw in message_lower for kw in keywords):
+                categories = Category.objects.filter(
+                    slug__icontains=category_name,
+                    events__status=Event.Status.APPROVED,
+                    events__start_date__gte=timezone.now()
+                ).distinct()
+                
+                if categories.exists():
+                    return category_name, list(categories[:3])
+        
+        categories = Category.objects.filter(
+            events__status=Event.Status.APPROVED,
+            events__start_date__gte=timezone.now()
+        ).annotate(
+            event_count=Count('events')
+        ).order_by('-event_count')[:3]
+        
+        return None, list(categories)
+    
+    def _generate_reply(self, message: str, category: str | None, events_count: int) -> str:
+        message_lower = message.lower()
+        
+        greetings = ['bonjour', 'salut', 'hello', 'hi', 'coucou']
+        if any(g in message_lower for g in greetings):
+            return "Bonjour ! Je suis votre assistant événementiel. Dites-moi quel type d'événement vous intéresse (concert, sport, business, culture...) et je vous recommande les meilleurs événements !"
+        
+        if any(word in message_lower for word in ['merci', 'thanks', 'appreciate']):
+            return "Avec plaisir ! N'hésitez pas si vous avez d'autres questions sur nos événements."
+        
+        if events_count > 0:
+            if category:
+                category_display = category.capitalize()
+                return f"Voici les événements {category_display} que je vous recommande :"
+            else:
+                return "Voici les événements que je vous recommande selon vos préférences :"
+        else:
+            return "Désolé, je n'ai pas trouvé d'événements correspondant à votre demande. Essayez avec d'autres mots-clés comme 'concert', 'sport', 'business' ou 'culture'."
+    
+    @extend_schema(
+        tags=['Chatbot'],
+        summary='Send message to intelligent chatbot',
+        request=ChatbotMessageSerializer,
+        responses={200: ChatbotResponseSerializer},
+    )
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def chat(self, request):
+        """
+        Intelligent chatbot endpoint
+        - Detects user intent (greeting, search, filter)
+        - Extracts filters (category, city, date, price)
+        - Queries database dynamically
+        - Returns natural language response + events
+        """
+        print(f"[Chatbot] Request: {request.data}")
+
+        # Validate input
+        serializer = ChatbotMessageSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'response': 'Message invalide. Veuillez réessayer.',
+                'events': [],
+                'intent': 'error',
+            }, status=400)
+
+        message = serializer.validated_data['message']
+
+        # Process with intelligent service
+        result = chatbot_service.process_message(message)
+
+        # Serialize events
+        event_serializer = EventListSerializer(
+            result['events'],
+            many=True,
+            context={'request': request}
+        )
+
+        print(f"[Chatbot] Response: intent={result['intent']}, events_count={len(result['events'])}")
+
+        return Response({
+            'response': result['response'],
+            'events': event_serializer.data,
+            'intent': result['intent'],
+            'filters': result['filters'],
+        })

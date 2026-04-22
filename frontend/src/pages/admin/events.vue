@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppSelect from '@/@core/components/app-form-elements/AppSelect.vue'
 import AppTextField from '@/@core/components/app-form-elements/AppTextField.vue'
+import { apiClient } from '@/services/http/axios'
 import { adminPanelApi } from '@/services/api'
 import type { EventListItem, EventStatus } from '@/services/api/types'
 
@@ -14,11 +15,16 @@ definePage({
 
 const events = ref<EventListItem[]>([])
 const loading = ref(false)
+const loadingAction = ref<number | null>(null)
 const totalItems = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const search = ref('')
 const statusFilter = ref('')
+
+const rejectDialog = ref(false)
+const rejectEventId = ref<number | null>(null)
+const rejectReason = ref('')
 
 const snackbar = ref({
   show: false,
@@ -96,6 +102,56 @@ watch(search, value => {
 })
 
 watch(statusFilter, () => applyFilters())
+
+const moderateEvent = async (eventId: number, action: 'approve' | 'reject', reason?: string) => {
+  loadingAction.value = eventId
+  try {
+    const response = await apiClient.post(`/admin-panel/events/${eventId}/moderate/`, {
+      action,
+      reason: reason || '',
+    })
+    
+    const updatedEvent = response.data
+    const eventIndex = events.value.findIndex(e => e.id === eventId)
+    if (eventIndex !== -1) {
+      events.value[eventIndex] = updatedEvent
+    }
+    
+    snackbar.value = {
+      show: true,
+      message: action === 'approve' 
+        ? 'Événement approuvé avec succès' 
+        : 'Événements rejeté',
+      color: action === 'approve' ? 'success' : 'error',
+    }
+    
+    fetchEvents()
+  }
+  catch (error: any) {
+    snackbar.value = {
+      show: true,
+      message: error?.response?.data?.detail || 'Erreur lors de la modération',
+      color: 'error',
+    }
+  }
+  finally {
+    loadingAction.value = null
+    rejectDialog.value = false
+    rejectEventId.value = null
+    rejectReason.value = ''
+  }
+}
+
+const openRejectDialog = (eventId: number) => {
+  rejectEventId.value = eventId
+  rejectDialog.value = true
+}
+
+const confirmReject = () => {
+  if (rejectEventId.value) {
+    moderateEvent(rejectEventId.value, 'reject', rejectReason.value)
+  }
+}
 
 onMounted(() => {
   fetchEvents()
@@ -183,8 +239,30 @@ onUnmounted(() => {
         </template>
 
         <template #item.actions="{ item }">
-          <div class="d-flex justify-end">
-            <VMenu>
+          <div class="d-flex justify-end gap-2">
+            <VBtn
+              v-if="item.status === 'pending'"
+              size="small"
+              color="success"
+              variant="tonal"
+              :loading="loadingAction === item.id"
+              @click="moderateEvent(item.id, 'approve')"
+            >
+              <VIcon icon="tabler-check" class="mr-1" />
+              Approuver
+            </VBtn>
+            <VBtn
+              v-if="item.status === 'pending'"
+              size="small"
+              color="error"
+              variant="tonal"
+              :loading="loadingAction === item.id"
+              @click="openRejectDialog(item.id)"
+            >
+              <VIcon icon="tabler-x" class="mr-1" />
+              Rejeter
+            </VBtn>
+            <VMenu v-if="item.status !== 'pending'">
               <template #activator="{ props }">
                 <IconBtn v-bind="props">
                   <VIcon icon="tabler-dots-vertical" />
@@ -194,9 +272,6 @@ onUnmounted(() => {
               <VList>
                 <VListItem :to="`/events/${item.slug}`">
                   <VListItemTitle>Voir</VListItemTitle>
-                </VListItem>
-                <VListItem v-if="item.status === 'pending'" @click="() => {}">
-                  <VListItemTitle>Approuver</VListItemTitle>
                 </VListItem>
               </VList>
             </VMenu>
@@ -212,5 +287,29 @@ onUnmounted(() => {
     >
       {{ snackbar.message }}
     </VSnackbar>
+
+    <VDialog v-model="rejectDialog" max-width="400">
+      <VCard>
+        <VCardTitle class="d-flex align-center justify-space-between">
+          <span>Rejeter l'événement</span>
+          <IconBtn @click="rejectDialog = false">
+            <VIcon icon="tabler-x" />
+          </IconBtn>
+        </VCardTitle>
+        <VCardText>
+          <VTextarea
+            v-model="rejectReason"
+            label="Motif du rejeté"
+            placeholder="raison du incontourn..."
+            rows="3"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="text" @click="rejectDialog = false">Annuler</VBtn>
+          <VBtn color="error" @click="confirmReject">Confirmer</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>

@@ -6,6 +6,7 @@ router = DefaultRouter()
 router.register('categories', views.CategoryViewSet, basename='category')
 router.register('favorites', views.FavoriteViewSet, basename='favorite')
 router.register('reviews', views.EventReviewViewSet, basename='event-review')
+router.register('chatbot', views.ChatbotViewSet, basename='chatbot')
 router.register('', views.EventViewSet, basename='event')
 
 urlpatterns = [

@@ -34,7 +34,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.ATTENDEE)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.APPROVED)
     status_note = models.TextField(blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
