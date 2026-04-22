@@ -35,31 +35,35 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ['email', 'first_name', 'last_name', 'password', 'password_confirm', 'role', 'phone']
 
     def validate(self, attrs):
-        try:
-            if attrs.get('password') != attrs.get('password_confirm'):
-                raise serializers.ValidationError({'password': 'Passwords do not match.'})
-            
-            role = attrs.get('role')
-            if role not in [User.Role.ATTENDEE, User.Role.ORGANIZER, 'attendee', 'organizer']:
-                attrs['role'] = User.Role.ATTENDEE
-            
-            return attrs
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Registration validation error: {str(e)}")
-            raise serializers.ValidationError({'detail': 'Invalid registration data.'})
+        email = attrs.get('email', '').strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({'email': 'Un utilisateur avec cet email existe déjà.'})
+        
+        if attrs.get('password') != attrs.get('password_confirm'):
+            raise serializers.ValidationError({'password': 'Les mots de passe ne correspondent pas.'})
+        
+        role = attrs.get('role')
+        if role not in [User.Role.ATTENDEE, User.Role.ORGANIZER, 'attendee', 'organizer']:
+            attrs['role'] = User.Role.ATTENDEE
+        
+        return attrs
 
     def create(self, validated_data):
-        try:
-            validated_data['status'] = User.Status.PENDING
-            validated_data['is_active'] = False
-            validated_data['role'] = validated_data.get('role') or User.Role.ATTENDEE
-            user = User.objects.create_user(**validated_data)
-            return user
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Registration create error: {str(e)}")
-            raise serializers.ValidationError({'detail': 'Failed to create user. Please try again.'})
+        validated_data.pop('password_confirm', None)
+        validated_data['status'] = User.Status.PENDING
+        validated_data['is_active'] = False
+        validated_data['role'] = validated_data.get('role') or User.Role.ATTENDEE
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data.get('password'),
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            phone=validated_data.get('phone', ''),
+            role=validated_data['role'],
+            status=validated_data['status'],
+            is_active=validated_data['is_active'],
+        )
+        return user
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
