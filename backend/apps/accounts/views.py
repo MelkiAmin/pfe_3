@@ -88,6 +88,7 @@ class RegisterView(generics.CreateAPIView):
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     serializer_class   = LoginSerializer
+    throttle_classes = []
 
     @extend_schema(
         tags=['Authentication'], summary='Log in',

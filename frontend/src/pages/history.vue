@@ -14,18 +14,18 @@ const items = ref<any[]>([])
 
 const title = computed(() => {
   if (authStore.role === 'admin')
-    return 'Validation History'
+    return 'Historique des validations'
   if (authStore.role === 'organizer')
-    return 'Created Events History'
-  return 'Purchases History'
+    return 'Historique des événements créés'
+  return 'Historique des achats'
 })
 
 const description = computed(() => {
   if (authStore.role === 'admin')
-    return 'Review approved and rejected events across the moderation workflow.'
+    return 'Consultez les événements approuvés et rejetés dans le workflow de modération.'
   if (authStore.role === 'organizer')
-    return 'Track all events you submitted and their current statuses.'
-  return 'Find your payments, reserved tickets and booking totals in one place.'
+    return 'Suivez tous les événements que vous avez soumis et leur statut actuel.'
+  return 'Trouvez vos paiements, billets réservés et totaux de réservation en un seul endroit.'
 })
 
 const load = async () => {

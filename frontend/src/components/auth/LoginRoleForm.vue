@@ -54,7 +54,7 @@ const resetError = ref('')
 
 const handleForgotPassword = async () => {
   if (!resetEmail.value) {
-    resetError.value = 'Please enter your email address.'
+    resetError.value = 'Veuillez entrer votre adresse email.'
     return
   }
 
@@ -65,7 +65,7 @@ const handleForgotPassword = async () => {
     resetSuccess.value = true
   }
   catch (error: any) {
-    resetError.value = error?.message || 'Failed to send reset email. Please try again.'
+    resetError.value = error?.message || 'Échec de l\'envoi de l\'email de réinitialisation. Veuillez réessayer.'
   }
   finally {
     resetLoading.value = false
@@ -124,24 +124,25 @@ const handleForgotPassword = async () => {
         size="large"
         type="submit"
         :loading="authStore.loading"
+        :disabled="authStore.loading"
       >
         Se connecter
       </VBtn>
 
       <div class="text-center text-body-2">
-        Don't have an account?
+        Vous n'avez pas de compte ?
         <RouterLink
           to="/register"
           class="text-primary text-decoration-none font-weight-bold"
         >
-          Sign up
+          S'inscrire
         </RouterLink>
       </div>
 
       <div class="demo-box">
         <div class="demo-box__header">
-          <span>Demo accounts</span>
-          <span class="text-medium-emphasis">Click to fill</span>
+          <span>Comptes de démonstration</span>
+          <span class="text-medium-emphasis">Cliquez pour remplir</span>
         </div>
 
         <button
@@ -200,7 +201,7 @@ const handleForgotPassword = async () => {
         <AppTextField
           v-if="!resetSuccess"
           v-model="resetEmail"
-          label="Email address"
+          label="Adresse email"
           type="email"
           prepend-inner-icon="tabler-mail"
         />
@@ -211,7 +212,7 @@ const handleForgotPassword = async () => {
           variant="text"
           @click="showForgotPassword = false"
         >
-          Cancel
+          Annuler
         </VBtn>
         <VBtn
           v-if="!resetSuccess"
@@ -219,7 +220,7 @@ const handleForgotPassword = async () => {
           :loading="resetLoading"
           @click="handleForgotPassword"
         >
-          Send reset code
+          Envoyer le code
         </VBtn>
       </VCardActions>
     </VCard>

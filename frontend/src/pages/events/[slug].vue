@@ -41,20 +41,56 @@ const loadPage = async () => {
   errorMessage.value = ''
   try {
     const slug = String(route.params.slug || '').trim()
-    const events = await eventsApi.list({ status: 'approved' })
-    const found = events.find(event => event.slug === slug || `id-${event.id}` === slug)
-
-    if (!found) {
-      errorMessage.value = 'Event not found.'
-      return
+    console.log('[EventDetails] Loading for slug:', slug)
+    
+    // Try to extract ID from slug (id-XXX format)
+    let eventId: number | null = null
+    
+    if (slug.startsWith('id-')) {
+      eventId = parseInt(slug.replace('id-', ''), 10)
+      console.log('[EventDetails] Extracted ID:', eventId)
     }
-
-    eventData.value = await eventsApi.getById(found.id)
-    ticketTypes.value = await ticketsApi.listTicketTypes({ event: found.id })
+    
+    if (eventId) {
+      // Direct fetch by ID
+      eventData.value = await eventsApi.getById(eventId)
+    }
+    else {
+      // Search by slug - fetch all approved events
+      const eventsResponse = await eventsApi.list({ status: 'approved', page_size: 100 })
+      const events = (eventsResponse as any).results || eventsResponse || []
+      console.log('[EventDetails] Found events:', events.length)
+      
+      const found = events.find((event: any) => 
+        event.slug === slug || 
+        slug.includes(event.slug || '')
+      )
+      
+      if (!found) {
+        console.log('[EventDetails] Event not found for slug:', slug)
+        errorMessage.value = 'Événement non trouvé.'
+        return
+      }
+      
+      console.log('[EventDetails] Found event:', found.id, found.title)
+      eventData.value = await eventsApi.getById(found.id)
+    }
+    
+    // Load ticket types from event data or API
+    if (eventData.value && (eventData.value as any).ticket_types) {
+      ticketTypes.value = (eventData.value as any).ticket_types
+    }
+    else if (eventData.value) {
+      ticketTypes.value = await ticketsApi.listTicketTypes({ event: eventData.value.id })
+    }
+    
     selectedTicketTypeId.value = ticketTypes.value[0]?.id || null
+    
+    console.log('[EventDetails] Loaded ticket types:', ticketTypes.value.length)
   }
-  catch {
-    errorMessage.value = 'Unable to load event details.'
+  catch (error: any) {
+    console.error('[EventDetails] Error loading:', error)
+    errorMessage.value = 'Impossible de charger les détails de l\'événement.'
   }
   finally {
     loading.value = false
@@ -119,7 +155,7 @@ onMounted(loadPage)
           variant="flat"
           class="mb-4"
         >
-          Approved
+          Approuvé
         </VChip>
         <h1 class="text-h2 mb-3">
           {{ eventData.title }}
@@ -160,10 +196,10 @@ onMounted(loadPage)
         <VCard class="section-card">
           <VCardText class="pa-6 pa-md-8">
             <p class="page-kicker">
-              Event overview
+              Vue d'ensemble
             </p>
             <h3 class="text-h4 mb-3">
-              What to expect
+              Ce qui vous attend
             </h3>
             <p class="text-medium-emphasis mb-0">
               {{ eventData.description }}
@@ -176,19 +212,19 @@ onMounted(loadPage)
         <VCard class="section-card booking-card">
           <VCardText class="pa-6">
             <p class="page-kicker">
-              Reserve now
+              Réserver maintenant
             </p>
             <h3 class="text-h4 mb-2">
-              {{ currentPrice.toFixed(2) }} EUR
+              {{ currentPrice.toFixed(2) }} DT
             </h3>
             <p class="text-medium-emphasis mb-5">
-              Select your ticket type, choose quantity and add it to the basket.
+              Sélectionnez le type de billet, Choisissez la quantité et ajoutez au panier.
             </p>
 
             <AppSelect
               v-model="selectedTicketTypeId"
-              label="Ticket type"
-              :items="ticketTypes.map(ticket => ({ title: `${ticket.name} · ${ticket.price} EUR`, value: ticket.id }))"
+              label="Type de billet"
+              :items="ticketTypes.map(ticket => ({ title: `${ticket.name} · ${ticket.price} DT`, value: ticket.id }))"
             />
 
             <AppTextField
@@ -197,20 +233,20 @@ onMounted(loadPage)
               type="number"
               min="1"
               :max="availableTickets || 1"
-              label="Quantity"
+              label="Quantité"
             />
 
             <div class="booking-summary mt-4">
               <div class="d-flex justify-space-between mb-2">
-                <span>Available tickets</span>
+                <span>Billets disponibles</span>
                 <strong>{{ availableTickets }}</strong>
               </div>
               <div class="d-flex justify-space-between mb-2">
                 <span>Total</span>
-                <strong>{{ estimatedTotal.toFixed(2) }} EUR</strong>
+                <strong>{{ estimatedTotal.toFixed(2) }} DT</strong>
               </div>
               <div class="text-medium-emphasis text-body-2">
-                {{ canAddToBasket ? 'Ready to add to basket' : 'Connect as utilisateur to reserve tickets' }}
+                {{ canAddToBasket ? 'Prêt à ajouter au panier' : 'Connectez-vous en tant qu\'utilisateur pour réserver' }}
               </div>
             </div>
 
@@ -222,7 +258,7 @@ onMounted(loadPage)
               :disabled="!canAddToBasket"
               @click="addToCart"
             >
-              Add to Basket
+              Ajouter au panier
             </VBtn>
           </VCardText>
         </VCard>

@@ -33,7 +33,10 @@ const messagesContainer = ref<HTMLElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 
 const canShowChatbot = computed(() => {
-  return authStore.role === 'attendee'
+  const role = authStore.role
+  const isAttendee = role === 'attendee' || role === 'utilisateur'
+  console.log('[Chatbot] Visibility check - role:', role, 'isAttendee:', isAttendee)
+  return isAttendee
 })
 
 const scrollToBottom = () => {

@@ -6,78 +6,108 @@ const props = defineProps<{
   event: EventListItem
 }>()
 
+const router = useRouter()
+
 const eventDetailPath = computed(() => {
   const safeSlug = typeof props.event.slug === 'string' ? props.event.slug.trim() : ''
-  return safeSlug ? `/events/${safeSlug}` : `/events/id-${props.event.id}`
+  const path = safeSlug ? `/events/${safeSlug}` : `/events/id-${props.event.id}`
+  return path
 })
+
+const handleConsultClick = () => {
+  router.push(eventDetailPath.value)
+}
 
 const priceLabel = computed(() => {
   if (props.event.is_free) return 'Gratuit'
-  if (props.event.min_price) return `À partir de ${props.event.min_price}€`
+  if (props.event.min_price) return `À partir de ${props.event.min_price} DT`
   return 'Billets disponibles'
 })
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 </script>
 
 <template>
-  <VCard class="event-card h-100">
+  <VCard class="event-card h-100" hover>
     <div class="event-card__media">
       <LazyImage
         :src="event.cover_image"
-        :height="250"
+        :height="200"
         alt="event cover"
+        class="event-card__image"
       />
       <div class="event-card__overlay" />
       <div class="event-card__badges">
         <VChip
-          color="primary"
+          :color="event.is_free ? 'success' : 'primary'"
           variant="flat"
           size="small"
+          class="font-weight-semibold"
         >
           {{ priceLabel }}
         </VChip>
         <VChip
           v-if="event.is_sold_out"
           color="error"
+          variant="flat"
           size="small"
         >
           Complet
         </VChip>
       </div>
+      <div v-if="event.category" class="event-card__category">
+        <VChip
+          size="x-small"
+          variant="flat"
+          color="white"
+          class="text-primary font-weight-medium"
+        >
+          {{ event.category.name }}
+        </VChip>
+      </div>
     </div>
 
-    <VCardText class="pa-5">
-      <div class="d-flex align-center justify-space-between gap-3 mb-3">
+    <VCardText class="event-card__content">
+      <div class="event-card__meta">
         <div class="event-card__date">
-          {{ new Date(event.start_date).toLocaleDateString() }}
+          <VIcon icon="tabler-calendar" size="14" class="mr-1" />
+          {{ formatDate(event.start_date) }}
         </div>
-        <div class="event-card__city">
-          {{ event.city || 'Online' }}
+        <div v-if="event.city" class="event-card__location">
+          <VIcon icon="tabler-map-pin" size="14" class="mr-1" />
+          {{ event.city }}
         </div>
       </div>
 
-      <h3 class="text-h5 mb-2">
+      <h3 class="event-card__title">
         {{ event.title }}
       </h3>
 
-      <p class="text-medium-emphasis mb-4">
-        {{ event.category?.description || 'A curated event experience with seamless ticket booking and modern attendee flow.' }}
+      <p class="event-card__description">
+        {{ event.category?.description || 'Réservez vos billets pour cet événement incroyable' }}
       </p>
 
-      <div class="d-flex align-center justify-space-between gap-4">
-        <div>
-          <div class="text-body-2 text-medium-emphasis">
-            Organisateur
-          </div>
-          <div class="font-weight-bold">
-            {{ event.organizer_name }}
-          </div>
+      <div class="event-card__footer">
+        <div class="event-card__organizer">
+          <VAvatar size="24" color="primary" variant="tonal">
+            <span class="text-caption">{{ event.organizer_name?.charAt(0) || 'O' }}</span>
+          </VAvatar>
+          <span class="text-body-2">{{ event.organizer_name }}</span>
         </div>
 
         <VBtn
           color="primary"
-          rounded="pill"
+          variant="flat"
+          size="small"
+          rounded="lg"
+          class="event-card__btn"
           :to="eventDetailPath"
+          @click="handleConsultClick"
         >
+          <VIcon icon="tabler-arrow-right" size="18" class="mr-1" />
           Consulter
         </VBtn>
       </div>
@@ -88,47 +118,117 @@ const priceLabel = computed(() => {
 <style scoped>
 .event-card {
   overflow: hidden;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 28px;
-  background: rgba(var(--v-theme-surface), 0.98);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(var(--v-border-color), 0.08);
+  border-radius: 20px;
+  background: rgb(var(--v-theme-surface));
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .event-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.13);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15), 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .event-card__media {
   position: relative;
+  overflow: hidden;
+}
+
+.event-card__image {
+  transition: transform 0.4s ease;
+}
+
+.event-card:hover .event-card__image {
+  transform: scale(1.08);
 }
 
 .event-card__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.28) 100%);
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
 }
 
 .event-card__badges {
   position: absolute;
-  inset-block-start: 1rem;
-  inset-inline: 1rem;
+  top: 12px;
+  left: 12px;
+  right: 12px;
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
+  z-index: 1;
 }
 
-.event-card__date {
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgb(var(--v-theme-primary));
+.event-card__category {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 1;
 }
 
-.event-card__city {
-  font-size: 0.9rem;
+.event-card__content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.event-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.event-card__date,
+.event-card__location {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
   color: rgba(var(--v-theme-on-surface), 0.6);
+  font-weight: 500;
+}
+
+.event-card__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: rgb(var(--v-theme-on-surface));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.event-card__description {
+  font-size: 0.85rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.event-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--v-border-color), 0.08);
+}
+
+.event-card__organizer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-card__btn {
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 </style>

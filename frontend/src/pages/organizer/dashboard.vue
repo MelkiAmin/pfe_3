@@ -29,7 +29,7 @@ const load = async () => {
     stats.value = data
   }
   catch (error: any) {
-    errorMessage.value = error?.response?.data?.detail || 'Unable to load the organizer dashboard.'
+    errorMessage.value = error?.response?.data?.detail || 'Impossible de charger le tableau de bord organisateur.'
   }
   finally {
     loading.value = false
@@ -67,7 +67,7 @@ onMounted(load)
           { title: 'Total events', value: stats.total_events, color: 'primary' },
           { title: 'Approved', value: stats.published_events, color: 'success' },
           { title: 'Pending', value: stats.draft_events, color: 'warning' },
-          { title: 'Revenue', value: `${Number(stats.total_revenue).toFixed(2)} EUR`, color: 'info' },
+          { title: 'Revenu', value: `${Number(stats.total_revenue).toFixed(2)} DT`, color: 'info' },
         ]"
         :key="card.title"
         cols="12"

@@ -20,14 +20,14 @@ type RoleOption = {
 const roles: RoleOption[] = [
   {
     title: 'Participant',
-    subtitle: 'Reserve tickets and attend events',
+    subtitle: 'Réservez des billets et assistez à des événements',
     value: 'attendee',
     icon: 'tabler-ticket',
     color: 'primary',
   },
   {
     title: 'Organisateur',
-    subtitle: 'Create and manage events',
+    subtitle: 'Créez et gérez des événements',
     value: 'organizer',
     icon: 'tabler-calendar-plus',
     color: 'info',
@@ -62,15 +62,35 @@ const validateForm = () => {
   const email = form.value.email.trim()
   const password = form.value.password
 
-  if (!firstName || !lastName) {
-    errorMessage.value = 'First name and last name are required.'
+if (!firstName || !lastName) {
+    errorMessage.value = 'Le prénom et le nom sont requis.'
     return false
   }
 
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-    errorMessage.value = 'Enter a valid email address.'
+  if (password.length < 8) {
+    errorMessage.value = 'Le mot de passe doit contenir au moins 8 caractères.'
     return false
   }
+
+  if (password !== form.value.confirmPassword) {
+    errorMessage.value = 'Les mots de passe ne correspondent pas.'
+    return false
+  }
+
+if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      errorMessage.value = 'Veuillez entrer une adresse email valide.'
+      return
+    }
+
+    if (password.length < 8) {
+      errorMessage.value = 'Le mot de passe doit contenir au moins 8 caractères.'
+      return
+    }
+
+    if (password !== form.value.confirmPassword) {
+      errorMessage.value = 'Les mots de passe ne correspondent pas.'
+      return
+    }
 
   if (password.length < 8) {
     errorMessage.value = 'Password must be at least 8 characters long.'
@@ -129,7 +149,7 @@ const handleRegister = async () => {
 
 const handleVerifyOtp = async () => {
   if (!otpCode.value || otpCode.value.length !== 6) {
-    errorMessage.value = 'Please enter a valid 6-digit code.'
+    errorMessage.value = 'Veuillez entrer un code à 6 chiffres valide.'
     return
   }
 
@@ -155,13 +175,13 @@ const handleVerifyOtp = async () => {
     <VCard class="register-card section-card">
       <VCardText class="pa-8 pa-md-10">
         <p class="page-kicker">
-          Join Planova
+          Rejoignez Planova
         </p>
         <h1 class="text-h3 mb-2">
-          Create your account
+          Créez votre compte
         </h1>
         <p class="text-medium-emphasis mb-6">
-          Choose your role and start your journey with Planova
+          Choisissez votre rôle et commencez votre aventure avec Planova
         </p>
 
         <VForm @submit.prevent="handleRegister">
@@ -184,7 +204,7 @@ const handleVerifyOtp = async () => {
 
             <!-- Role Selection -->
             <div class="role-selection mb-4">
-              <div class="text-subtitle-2 mb-2">I want to:</div>
+              <div class="text-subtitle-2 mb-2">Je souhaite :</div>
               <VRadioGroup v-model="form.role" inline>
                 <div class="role-options">
                   <div
@@ -217,7 +237,7 @@ const handleVerifyOtp = async () => {
               <VCol cols="12" md="6">
                 <AppTextField
                   v-model="form.firstName"
-                  label="First name"
+                  label="Prénom"
                   prepend-inner-icon="tabler-user"
                   placeholder="Amina"
                 />
@@ -225,7 +245,7 @@ const handleVerifyOtp = async () => {
               <VCol cols="12" md="6">
                 <AppTextField
                   v-model="form.lastName"
-                  label="Last name"
+                  label="Nom"
                   prepend-inner-icon="tabler-user-circle"
                   placeholder="Ben Ali"
                 />
@@ -242,7 +262,7 @@ const handleVerifyOtp = async () => {
               <VCol cols="12" md="6">
                 <AppTextField
                   v-model="form.phone"
-                  label="Phone (optional)"
+                  label="Téléphone (optionnel)"
                   prepend-inner-icon="tabler-phone"
                   placeholder="+216 00 000 000"
                 />
@@ -250,7 +270,7 @@ const handleVerifyOtp = async () => {
               <VCol cols="12" md="6">
                 <AppTextField
                   v-model="form.password"
-                  label="Password"
+                  label="Mot de passe"
                   :type="isPasswordVisible ? 'text' : 'password'"
                   prepend-inner-icon="tabler-lock"
                   :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
@@ -260,7 +280,7 @@ const handleVerifyOtp = async () => {
               <VCol cols="12" md="6">
                 <AppTextField
                   v-model="form.confirmPassword"
-                  label="Confirm password"
+                  label="Confirmer le mot de passe"
                   :type="isConfirmPasswordVisible ? 'text' : 'password'"
                   prepend-inner-icon="tabler-shield-lock"
                   :append-inner-icon="isConfirmPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
@@ -275,16 +295,16 @@ const handleVerifyOtp = async () => {
               type="submit"
               :loading="isLoading"
             >
-              Create my account
+              Créer mon compte
             </VBtn>
 
             <div class="text-center text-medium-emphasis">
-              Already have an account?
+              Vous avez déjà un compte ?
               <RouterLink
                 class="text-primary text-decoration-none ms-1"
                 to="/login"
               >
-                Sign in
+                Se connecter
               </RouterLink>
             </div>
           </div>
@@ -299,17 +319,17 @@ const handleVerifyOtp = async () => {
           <VAvatar color="primary" size="64" class="mb-4">
             <VIcon icon="tabler-mail" size="32" />
           </VAvatar>
-          <VCardTitle class="text-h5">Verify your email</VCardTitle>
+          <VCardTitle class="text-h5">Vérifiez votre email</VCardTitle>
           <VCardText class="text-medium-emphasis">
-            We've sent a 6-digit code to your email.
-            <br>Enter it below to activate your account.
+            Nous avons envoyé un code à 6 chiffres à votre email.
+            <br>Entrez-le ci-dessous pour activer votre compte.
           </VCardText>
         </VCardItem>
 
         <VCardText class="pa-6 pt-0">
           <AppTextField
             v-model="otpCode"
-            label="Verification code"
+            label="Code de vérification"
             placeholder="000000"
             maxlength="6"
             class="otp-input text-center"
@@ -323,7 +343,7 @@ const handleVerifyOtp = async () => {
             :loading="isLoading"
             @click="handleVerifyOtp"
           >
-            Verify account
+            Vérifier le compte
           </VBtn>
         </VCardActions>
       </VCard>

@@ -89,7 +89,7 @@ onMounted(loadWallet)
               Solde disponible
             </div>
             <div class="text-h3 mb-5">
-              {{ loading ? '...' : Number(wallet.balance).toFixed(2) }} EUR
+              {{ loading ? '...' : Number(wallet.balance).toFixed(2) }} DT
             </div>
 
             <VAlert v-if="successMsg" type="success" variant="tonal" class="mb-3">
@@ -151,9 +151,9 @@ onMounted(loadWallet)
                   </td>
                   <td>{{ tx.details || '-' }}</td>
                   <td class="text-right font-weight-bold">
-                    {{ tx.trx_type === 'credit' ? '+' : '-' }}{{ Number(tx.amount).toFixed(2) }} EUR
+                    {{ tx.trx_type === 'credit' ? '+' : '-' }}{{ Number(tx.amount).toFixed(2) }} DT
                   </td>
-                  <td class="text-right">{{ Number(tx.post_balance).toFixed(2) }} EUR</td>
+                  <td class="text-right">{{ Number(tx.post_balance).toFixed(2) }} DT</td>
                 </tr>
               </tbody>
             </VTable>
@@ -166,7 +166,7 @@ onMounted(loadWallet)
       <VCard class="section-card" title="Demande de retrait">
         <VCardText>
           <p class="text-medium-emphasis mb-4">
-            Solde disponible : <strong>{{ Number(wallet.balance).toFixed(2) }} EUR</strong>
+            Solde disponible : <strong>{{ Number(wallet.balance).toFixed(2) }} DT</strong>
           </p>
           <VTextField
             v-model="withdrawForm.amount"

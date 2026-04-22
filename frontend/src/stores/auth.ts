@@ -76,8 +76,19 @@ export const useAuthStore = defineStore('auth', {
         return data.user as AuthUser
       }
       catch (error: any) {
-        const detail = error?.response?.data?.detail
-        this.error = typeof detail === 'string' ? detail : 'Email ou mot de passe incorrect.'
+        const response = error?.response?.data
+        const throttleMatch = error?.message?.match(/Expected available in (\d+) seconds/)
+        
+        if (throttleMatch || response?.detail?.includes('throttl')) {
+          const seconds = throttleMatch ? Math.ceil(parseInt(throttleMatch[1]) / 1000) : 30
+          this.error = `Trop de tentatives. Veuillez patienter ${seconds} secondes avant de réessayer.`
+        }
+        else if (response?.detail) {
+          this.error = response.detail
+        }
+        else {
+          this.error = 'Email ou mot de passe incorrect.'
+        }
         throw new Error(this.error)
       }
       finally {

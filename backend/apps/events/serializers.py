@@ -48,63 +48,125 @@ class EventDetailSerializer(serializers.ModelSerializer):
     is_sold_out = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     reviews_count = serializers.ReadOnlyField()
+    ticket_types = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = '__all__'
 
+    def get_ticket_types(self, obj):
+        from apps.tickets.serializers import TicketTypeSerializer
+        return TicketTypeSerializer(obj.ticket_types.all(), many=True).data
+
 class EventCreateUpdateSerializer(serializers.ModelSerializer):
-    ticket_price = serializers.DecimalField(max_digits=10, decimal_places=2, write_only=True, required=False)
-    ticket_quantity = serializers.IntegerField(min_value=1, write_only=True, required=False)
+    ticket_price = serializers.DecimalField(max_digits=10, decimal_places=2, write_only=True, required=False, allow_null=True, default=0)
+    ticket_quantity = serializers.IntegerField(min_value=1, write_only=True, required=False, allow_null=True, default=100)
+    category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    start_date = serializers.DateTimeField(required=False, allow_null=True)
+    end_date = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = Event
-        exclude = ['organizer', 'slug', 'created_at', 'updated_at']
+        fields = [
+            'id', 'title', 'description', 'category', 'cover_image',
+            'event_type', 'venue_name', 'address', 'city', 'country', 'online_url',
+            'start_date', 'end_date', 'max_capacity', 'is_free', 'tags',
+            'ticket_price', 'ticket_quantity',
+        ]
+        extra_kwargs = {
+            'category': {'required': False, 'allow_null': True, 'allow_blank': True},
+            'cover_image': {'required': False, 'allow_null': True},
+            'event_type': {'required': False, 'allow_blank': True},
+            'venue_name': {'required': False, 'allow_blank': True},
+            'address': {'required': False, 'allow_blank': True},
+            'city': {'required': False, 'allow_blank': True},
+            'country': {'required': False, 'allow_blank': True},
+            'online_url': {'required': False, 'allow_blank': True},
+            'max_capacity': {'required': False, 'allow_null': True},
+            'is_free': {'required': False},
+            'tags': {'required': False, 'allow_null': True},
+        }
 
     def validate(self, attrs):
+        import logging
+        from django.utils.dateparse import parse_datetime
+        logger = logging.getLogger(__name__)
+        
         if self.instance is None:
-            required_fields = {
-                'title': attrs.get('title'),
-                'description': attrs.get('description'),
-                'ticket_price': attrs.get('ticket_price'),
-                'ticket_quantity': attrs.get('ticket_quantity'),
-            }
-            missing = [field for field, value in required_fields.items() if value in [None, '', []]]
-            if missing:
-                error_messages = {}
-                for field in missing:
-                    if field == 'title':
-                        error_messages[field] = 'Le titre est requis'
-                    elif field == 'description':
-                        error_messages[field] = 'La description est requise'
-                    elif field == 'ticket_price':
-                        error_messages[field] = 'Le prix du billet est requis'
-                    elif field == 'ticket_quantity':
-                        error_messages[field] = 'La quantité de billets est requise'
-                raise serializers.ValidationError(error_messages)
-
+            if not attrs.get('title'):
+                raise serializers.ValidationError({'title': 'Le titre est requis'})
+            if not attrs.get('description'):
+                raise serializers.ValidationError({'description': 'La description est requise'})
+            
+            if not attrs.get('start_date'):
+                raise serializers.ValidationError({'start_date': 'La date de début est requise'})
+            if not attrs.get('end_date'):
+                attrs['end_date'] = attrs.get('start_date')
+            
             attrs['status'] = Event.Status.PENDING
 
+        logger.info(f"Validated attrs: {attrs.keys()}")
+        logger.info(f"  start_date: {attrs.get('start_date')}")
+        logger.info(f"  end_date: {attrs.get('end_date')}")
         return super().validate(attrs)
 
     def create(self, validated_data):
+        import logging
         from django.utils.text import slugify
         import uuid
         from apps.tickets.models import TicketType
+        from .models import Category
 
-        ticket_price = validated_data.pop('ticket_price')
-        ticket_quantity = validated_data.pop('ticket_quantity')
-        title = validated_data.get('title', '')
-        validated_data['slug'] = slugify(title) + '-' + str(uuid.uuid4())[:8]
-        validated_data['organizer'] = self.context['request'].user
-        validated_data['status'] = Event.Status.PENDING
+        logger = logging.getLogger(__name__)
+        
+        ticket_price = validated_data.pop('ticket_price') or 0
+        ticket_quantity = validated_data.pop('ticket_quantity') or 100
+        title = validated_data.get('title') or ''
+        
+        category_value = validated_data.pop('category', None)
+        category_obj = None
+        if category_value:
+            if isinstance(category_value, int):
+                category_obj = Category.objects.filter(id=category_value).first()
+            elif isinstance(category_value, str):
+                category_obj = Category.objects.filter(slug=category_value).first()
+                if not category_obj:
+                    category_obj = Category.objects.filter(name__iexact=category_value).first()
+        
+        slug = slugify(title) + '-' + str(uuid.uuid4())[:8]
+        organizer = self.context['request'].user
+        status = Event.Status.PENDING
+        
+        logger.info(f"SERIALIZER CREATE: title={title}, category={category_value}, organizer={organizer.email}")
 
-        event = super().create(validated_data)
+        event = Event.objects.create(
+            title=title,
+            description=validated_data.get('description') or '',
+            category=category_obj,
+            cover_image=validated_data.get('cover_image'),
+            event_type=validated_data.get('event_type') or Event.EventType.IN_PERSON,
+            venue_name=validated_data.get('venue_name') or '',
+            address=validated_data.get('address') or '',
+            city=validated_data.get('city') or '',
+            country=validated_data.get('country') or '',
+            online_url=validated_data.get('online_url') or '',
+            start_date=validated_data.get('start_date'),
+            end_date=validated_data.get('end_date'),
+            max_capacity=validated_data.get('max_capacity'),
+            is_free=validated_data.get('is_free', False),
+            tags=validated_data.get('tags') or [],
+            slug=slug,
+            organizer=organizer,
+            status=status,
+        )
+        
+        logger.info(f"EVENT CREATED: id={event.id}, status={event.status}")
+
         TicketType.objects.create(
             event=event,
             name='Standard',
-            price=ticket_price,
-            quantity=ticket_quantity,
+            price=ticket_price or 0,
+            quantity=ticket_quantity or 100,
         )
 
         admins = User.objects.filter(role=User.Role.ADMIN)

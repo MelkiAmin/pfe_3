@@ -61,6 +61,51 @@ class EventViewSet(viewsets.ModelViewSet):
     ordering_fields = ['start_date', 'created_at', 'title']
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Events'], summary='DEBUG: Get ALL events in database',
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser], url_path='debug-all')
+    def debug_all_events(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        all_events = Event.objects.all().select_related('organizer')
+        logger.info(f"DEBUG: Total events in DB: {all_events.count()}")
+        
+        for e in all_events:
+            logger.info(f"  Event: {e.id} | {e.title} | status={e.status} | organizer={e.organizer.email}")
+        
+        return Response({
+            'total': all_events.count(),
+            'events': [{
+                'id': e.id,
+                'title': e.title,
+                'status': e.status,
+                'organizer_email': e.organizer.email,
+            } for e in all_events]
+        })
+
+    def perform_create(self, serializer):
+        import logging
+        from apps.notifications.tasks import create_notification
+        from apps.notifications.models import Notification
+        
+        logger = logging.getLogger(__name__)
+        
+        user = self.request.user
+        logger.info(f"VIEW perform_create: user={user.email}, role={user.role}")
+        
+        event = serializer.save()
+        logger.info(f"VIEW perform_create: saved event id={event.id}, status={event.status}")
+        
+        create_notification(
+            recipient=user,
+            notification_type=Notification.Type.EVENT_SUBMITTED,
+            title='Event submitted',
+            message=f'Your event "{event.title}" has been submitted and is pending approval.',
+            data={'event_id': event.id},
+        )
+
     def get_serializer_class(self):
         if self.action == 'list':
             return EventListSerializer
@@ -89,6 +134,9 @@ class EventViewSet(viewsets.ModelViewSet):
         return [IsOwnerOrAdmin()]
 
     def get_queryset(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         qs = super().get_queryset()
 
         # Custom filters
@@ -104,18 +152,24 @@ class EventViewSet(viewsets.ModelViewSet):
             qs = qs.filter(is_free=is_free.lower() == 'true')
 
         if self.action == 'list':
-            if self.request.user.is_authenticated and self.request.user.role == 'admin':
+            user = self.request.user
+            logger.info(f"get_queryset list called by user: {user.email}, role: {user.role}, authenticated: {user.is_authenticated}")
+            
+            if user.is_authenticated and str(user.role) == str(user.Role.ADMIN):
+                logger.info("Admin - returning all events")
                 return qs
-            if self.request.user.is_authenticated and self.request.user.role == 'organizer':
+            if user.is_authenticated and str(user.role) == str(user.Role.ORGANIZER):
+                logger.info("Organizer - returning own events + approved")
                 return qs.filter(Q(organizer=self.request.user) | Q(status=Event.Status.APPROVED)).distinct()
 
+            logger.info("Anonymous - returning only approved events")
             qs = qs.filter(status=Event.Status.APPROVED)
 
         if self.action == 'retrieve':
             user = self.request.user
-            if user.is_authenticated and user.role == 'admin':
+            if user.is_authenticated and str(user.role) == str(user.Role.ADMIN):
                 return qs
-            if user.is_authenticated and user.role == 'organizer':
+            if user.is_authenticated and str(user.role) == str(user.Role.ORGANIZER):
                 return qs.filter(
                     Q(organizer=user) | Q(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED]),
                 ).distinct()
@@ -207,15 +261,24 @@ class EventViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'], permission_classes=[IsOrganizerOrAdmin], url_path='status-summary')
     def status_summary(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
         user = request.user
-        if user.role == 'admin':
+        
+        logger.info(f"status_summary called by user: {user.email}, role: {user.role}")
+        
+        if str(user.role) == str(user.Role.ADMIN):
+            logger.info("Admin mode - returning all events")
             pending_count = Event.objects.filter(status=Event.Status.PENDING).count()
             approved_count = Event.objects.filter(status=Event.Status.APPROVED).count()
             rejected_count = Event.objects.filter(status=Event.Status.REJECTED).count()
         else:
+            logger.info(f"Organizer mode - filtering by organizer: {user.id}")
             pending_count = Event.objects.filter(organizer=user, status=Event.Status.PENDING).count()
             approved_count = Event.objects.filter(organizer=user, status=Event.Status.APPROVED).count()
             rejected_count = Event.objects.filter(organizer=user, status=Event.Status.REJECTED).count()
+            
+        logger.info(f"Status counts - pending: {pending_count}, approved: {approved_count}, rejected: {rejected_count}")
         
         return Response({
             'pending_count': pending_count,
@@ -293,7 +356,13 @@ class EventViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'], permission_classes=[IsOrganizerOrAdmin], url_path='my-events')
     def my_events(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"my_events called by user: {request.user.email}, role: {request.user.role}")
+        
         qs = Event.objects.filter(organizer=request.user).select_related('category')
+        logger.info(f"Total events for organizer: {qs.count()}")
+        
         page = self.paginate_queryset(qs)
         serializer = EventListSerializer(page, many=True, context={'request': request})
         return self.get_paginated_response(serializer.data)

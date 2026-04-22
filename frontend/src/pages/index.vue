@@ -87,27 +87,43 @@ onMounted(async () => {
               les plus marquants. reservez vos places en toute simplicite.
             </p>
             <div class="hero-actions">
-              <VBtn
-                color="primary"
-                size="x-large"
-                rounded="pill"
-                to="/events"
-                class="hero-btn"
-              >
-                <VIcon icon="tabler-search" class="mr-2" />
-                Explorer les evenements
-              </VBtn>
-              <VBtn
-                v-if="!isLoggedIn"
-                variant="tonal"
-                size="x-large"
-                rounded="pill"
-                to="/register"
-                class="hero-btn"
-              >
-                <VIcon icon="tabler-user-plus" class="mr-2" />
-                Creer un compte
-              </VBtn>
+              <!-- Show for logged in users -->
+              <template v-if="isLoggedIn">
+                <VBtn
+                  color="primary"
+                  size="x-large"
+                  rounded="pill"
+                  to="/events"
+                  class="hero-btn"
+                >
+                  <VIcon icon="tabler-search" class="mr-2" />
+                  Explorer les evenements
+                </VBtn>
+              </template>
+
+              <!-- Show for non-logged in users -->
+              <template v-else>
+                <VBtn
+                  color="primary"
+                  size="x-large"
+                  rounded="pill"
+                  to="/events"
+                  class="hero-btn"
+                >
+                  <VIcon icon="tabler-search" class="mr-2" />
+                  Explorer les evenements
+                </VBtn>
+                <VBtn
+                  variant="tonal"
+                  size="x-large"
+                  rounded="pill"
+                  to="/register"
+                  class="hero-btn"
+                >
+                  <VIcon icon="tabler-user-plus" class="mr-2" />
+                  Creer un compte
+                </VBtn>
+              </template>
             </div>
           </div>
           <div class="hero-stats">
@@ -206,20 +222,37 @@ onMounted(async () => {
       <div class="container">
         <VCard class="cta-card">
           <VCardText class="pa-12 text-center">
-            <h2 class="text-h3 mb-4">Pret a vivre des experiences incroyables?</h2>
-            <p class="text-medium-emphasis mb-6">
-              Rejoignez Planova et reservez vos places des maintenant
-            </p>
-            <div class="d-flex justify-center gap-4 flex-wrap">
-              <VBtn color="primary" size="x-large" rounded="pill" to="/register">
-                <VIcon icon="tabler-user-plus" class="mr-2" />
-                S'inscrire
-              </VBtn>
-              <VBtn variant="tonal" size="x-large" rounded="pill" to="/events">
-                <VIcon icon="tabler-ticket" class="mr-2" />
-                Parcourir les evenements
-              </VBtn>
-            </div>
+            <!-- Show when NOT logged in -->
+            <template v-if="!isLoggedIn">
+              <h2 class="text-h3 mb-4">Pret a vivre des experiences incroyables?</h2>
+              <p class="text-medium-emphasis mb-6">
+                Rejoignez Planova et reservez vos places des maintenant
+              </p>
+              <div class="d-flex justify-center gap-4 flex-wrap">
+                <VBtn color="primary" size="x-large" rounded="pill" to="/register">
+                  <VIcon icon="tabler-user-plus" class="mr-2" />
+                  S'inscrire
+                </VBtn>
+                <VBtn variant="tonal" size="x-large" rounded="pill" to="/events">
+                  <VIcon icon="tabler-ticket" class="mr-2" />
+                  Parcourir les evenements
+                </VBtn>
+              </div>
+            </template>
+
+            <!-- Show when logged in -->
+            <template v-else>
+              <h2 class="text-h3 mb-4">Bienvenue, vous etes connecte !</h2>
+              <p class="text-medium-emphasis mb-6">
+                Parcourez nos evenements et reservez vos places
+              </p>
+              <div class="d-flex justify-center gap-4 flex-wrap">
+                <VBtn color="primary" size="x-large" rounded="pill" to="/events">
+                  <VIcon icon="tabler-ticket" class="mr-2" />
+                  Explorer les evenements
+                </VBtn>
+              </div>
+            </template>
           </VCardText>
         </VCard>
       </div>

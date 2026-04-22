@@ -27,7 +27,7 @@ const load = async () => {
   }
   catch (error: any) {
     events.value = []
-    errorMessage.value = error?.response?.data?.detail || 'Unable to load admin events right now.'
+    errorMessage.value = error?.response?.data?.detail || 'Impossible de charger les événements admin.'
   }
   finally {
     loading.value = false

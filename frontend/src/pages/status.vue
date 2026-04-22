@@ -19,6 +19,7 @@ const eventForm = ref<typeof EventForm | null>(null)
 const statusCounts = ref({ pending_count: 0, approved_count: 0, rejected_count: 0 })
 
 const isOrganizer = computed(() => authStore.role === 'organizer')
+const isAdmin = computed(() => authStore.role === 'admin')
 
 const statusCards = computed(() => [
   { title: 'En attente', value: statusCounts.value.pending_count, color: 'warning', icon: 'tabler-clock' },
@@ -29,14 +30,55 @@ const statusCards = computed(() => [
 const load = async () => {
   loading.value = true
   try {
-    const [eventsRes, countsRes] = await Promise.all([
-      eventsApi.list(),
-      apiClient.get('/events/status-summary/').catch(() => ({ data: { pending_count: 0, approved_count: 0, rejected_count: 0 } })),
-    ])
-    events.value = eventsRes.results || eventsRes || []
-    statusCounts.value = countsRes.data
+    console.log('=== LOAD STATUS PAGE ===')
+    console.log('User role:', authStore.role)
+    console.log('isAdmin:', isAdmin.value)
+    console.log('isOrganizer:', isOrganizer.value)
+    
+    console.log('Fetching status summary from /events/status-summary/...')
+    const countsRes = await apiClient.get('/events/status-summary/')
+    console.log('Status summary response:', JSON.stringify(countsRes.data))
+    
+    if (countsRes.data) {
+      statusCounts.value = {
+        pending_count: Number(countsRes.data.pending_count) || 0,
+        approved_count: Number(countsRes.data.approved_count) || 0,
+        rejected_count: Number(countsRes.data.rejected_count) || 0,
+      }
+    }
+    console.log('Updated statusCounts:', statusCounts.value)
+    
+    let eventsEndpoint = isAdmin.value ? '/admin-panel/events/' : '/events/my-events/'
+    console.log('Fetching events from:', eventsEndpoint)
+    
+    const eventsRes = await apiClient.get(eventsEndpoint)
+    console.log('Events response status:', eventsRes.status)
+    console.log('Events response keys:', eventsRes.data ? Object.keys(eventsRes.data) : 'no data')
+    
+    const eventsData = eventsRes.data
+    if (eventsData) {
+      if (eventsData.results) {
+        events.value = eventsData.results
+        console.log('Paginated - results length:', eventsData.results.length)
+      } else if (Array.isArray(eventsData)) {
+        events.value = eventsData
+        console.log('Array - length:', eventsData.length)
+      } else {
+        events.value = []
+        console.log('Unexpected event data format:', eventsData)
+      }
+    } else {
+      events.value = []
+    }
+    
+    console.log('Final events value:', events.value.length, 'events')
+    if (events.value.length > 0) {
+      console.log('First event:', JSON.stringify(events.value[0]))
+    }
   }
-  catch {
+  catch (error: any) {
+    console.error('LOAD ERROR:', error?.message || error)
+    console.error('Response:', error?.response)
     events.value = []
     statusCounts.value = { pending_count: 0, approved_count: 0, rejected_count: 0 }
   }
@@ -46,8 +88,17 @@ const load = async () => {
 }
 
 const handleEventCreated = (newEvent: EventListItem) => {
-  events.value.unshift(newEvent)
-  statusCounts.value.pending_count++
+  load()
+}
+
+const refreshCounts = async () => {
+  try {
+    const countsRes = await apiClient.get('/events/status-summary/')
+    statusCounts.value = countsRes.data
+  }
+  catch (error) {
+    console.error('Failed to refresh counts:', error)
+  }
 }
 
 onMounted(load)

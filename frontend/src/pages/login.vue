@@ -19,27 +19,27 @@ onMounted(() => clearSession())
     <div class="auth-screen__side">
       <div class="auth-mark">Planova</div>
       <p class="page-kicker">
-        Ticketing made elegant
+        Ticketing élégant
       </p>
       <h1 class="auth-screen__title">
-        Book, validate, and manage memorable events.
+        Réservez, validez et gérez des événements mémorables.
       </h1>
       <p class="auth-screen__text">
-        A premium reservation experience for admins, organisateurs and attendees, all in one polished workspace.
+        Une expérience de réservation premium pour admins, organisateurs et participants, tout dans un espace de travail raffiné.
       </p>
 
       <div class="feature-list">
         <div class="feature-item">
           <VIcon icon="tabler-check" />
-          <span>Instant event validation workflow</span>
+          <span>Workflow de validation instantané</span>
         </div>
         <div class="feature-item">
           <VIcon icon="tabler-check" />
-          <span>Smart basket and ticket reservation flow</span>
+          <span>Panier intelligent et réservation de billets</span>
         </div>
         <div class="feature-item">
           <VIcon icon="tabler-check" />
-          <span>Professional dashboards for every role</span>
+          <span>Tableaux de bord professionnels pour chaque rôle</span>
         </div>
       </div>
     </div>

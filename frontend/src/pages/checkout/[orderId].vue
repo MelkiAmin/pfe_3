@@ -85,15 +85,15 @@ const pay = async (provider: 'stripe' | 'paypal') => {
         <VCardText>
           <div class="d-flex justify-space-between mb-1">
             <span>Sous-total</span>
-            <strong>{{ cartStore.subtotal.toFixed(2) }}€</strong>
+            <strong>{{ cartStore.subtotal.toFixed(2) }} DT</strong>
           </div>
           <div class="d-flex justify-space-between mb-1">
             <span>Frais</span>
-            <strong>{{ cartStore.fees.toFixed(2) }}€</strong>
+            <strong>{{ cartStore.fees.toFixed(2) }} DT</strong>
           </div>
           <div class="d-flex justify-space-between">
             <span>Total</span>
-            <strong>{{ cartStore.total.toFixed(2) }}€</strong>
+            <strong>{{ cartStore.total.toFixed(2) }} DT</strong>
           </div>
         </VCardText>
       </VCard>

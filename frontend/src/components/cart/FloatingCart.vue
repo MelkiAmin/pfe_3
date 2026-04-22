@@ -85,7 +85,7 @@ const goCheckout = async () => {
             <template #append>
               <div class="text-end">
                 <div class="font-weight-bold">
-                  {{ (item.unitPrice * item.quantity).toFixed(2) }} EUR
+                  {{ (item.unitPrice * item.quantity).toFixed(2) }} DT
                 </div>
                 <IconBtn @click="cartStore.removeItem(item.key)">
                   <VIcon icon="tabler-trash" />
@@ -105,15 +105,15 @@ const goCheckout = async () => {
           </div>
           <div class="d-flex justify-space-between mb-2">
             <span>Sous-total</span>
-            <strong>{{ cartStore.subtotal.toFixed(2) }} EUR</strong>
+            <strong>{{ cartStore.subtotal.toFixed(2) }} DT</strong>
           </div>
           <div class="d-flex justify-space-between mb-2">
             <span>Frais</span>
-            <strong>{{ cartStore.fees.toFixed(2) }} EUR</strong>
+            <strong>{{ cartStore.fees.toFixed(2) }} DT</strong>
           </div>
           <div class="d-flex justify-space-between text-h6">
             <span>Total</span>
-            <strong>{{ cartStore.total.toFixed(2) }} EUR</strong>
+            <strong>{{ cartStore.total.toFixed(2) }} DT</strong>
           </div>
         </VSheet>
 

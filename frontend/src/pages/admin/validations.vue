@@ -25,7 +25,7 @@ const load = async () => {
   }
   catch (error: any) {
     items.value = []
-    errorMessage.value = error?.data?.detail || 'Unable to load pending events.'
+    errorMessage.value = error?.data?.detail || 'Impossible de charger les événements en attente.'
   }
   finally {
     loading.value = false

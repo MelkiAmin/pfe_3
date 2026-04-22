@@ -15,10 +15,15 @@ const router = createRouter({
 
     return { top: 0 }
   },
-  extendRoutes: pages => setupLayouts(pages as RouteRecordRaw[]),
+  extendRoutes: pages => {
+    console.log('[Router] Registered routes:', pages.map(p => p.path))
+    return setupLayouts(pages as RouteRecordRaw[])
+  },
 })
 
-router.beforeEach(async to => {
+router.beforeEach(async (to, from) => {
+  console.log('[Router] Navigating from:', from.path, 'to:', to.path)
+  
   const authStore = useAuthStore(store)
   authStore.bootstrap()
 

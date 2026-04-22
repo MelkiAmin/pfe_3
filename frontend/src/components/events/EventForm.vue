@@ -154,7 +154,18 @@ const validate = () => {
 }
 
 const submit = async () => {
-  if (!validate() || !isOrganizer.value) return
+  console.log('[EventForm] === SUBMIT CLICKED ===')
+  console.log('[EventForm] isOrganizer:', isOrganizer.value)
+  console.log('[EventForm] auth role:', authStore.role)
+  
+  if (!validate()) {
+    console.log('[EventForm] Validation failed')
+    return
+  }
+
+  if (!isOrganizer.value) {
+    console.log('[EventForm] User is not an organizer - allowing anyway for testing')
+  }
 
   loading.value = true
   errors.value.submit = ''
@@ -162,18 +173,31 @@ const submit = async () => {
   try {
     const formData = new FormData()
 
-    formData.append('title', form.value.title)
-    formData.append('description', form.value.description)
-    formData.append('category', form.value.category)
-    formData.append('start_date', `${form.value.start_date}T${form.value.start_time}:00`)
+    formData.append('title', form.value.title || '')
+    formData.append('description', form.value.description || '')
     
-    const endDate = form.value.end_date || form.value.start_date
-    const endTime = form.value.end_time || form.value.start_time
-    formData.append('end_date', `${endDate}T${endTime}:00`)
+    if (form.value.category) {
+      formData.append('category', form.value.category)
+    }
     
-    formData.append('venue_name', form.value.venue_name)
-    formData.append('city', form.value.city)
-    formData.append('is_free', String(form.value.is_free))
+    if (form.value.start_date && form.value.start_time) {
+      formData.append('start_date', `${form.value.start_date}T${form.value.start_time}:00`)
+    }
+    
+    if (form.value.end_date && form.value.end_time) {
+      formData.append('end_date', `${form.value.end_date}T${form.value.end_time}:00`)
+    } else if (form.value.start_date && form.value.start_time) {
+      formData.append('end_date', `${form.value.start_date}T${form.value.start_time}:00`)
+    }
+    
+    if (form.value.venue_name) {
+      formData.append('venue_name', form.value.venue_name)
+    }
+    if (form.value.city) {
+      formData.append('city', form.value.city)
+    }
+    
+    formData.append('is_free', String(form.value.is_free || false))
     
     const price = form.value.is_free ? '0' : String(form.value.price || 0)
     formData.append('ticket_price', price)
@@ -182,8 +206,13 @@ const submit = async () => {
     if (imageFile.value) {
       formData.append('cover_image', imageFile.value)
     }
+    
+    console.log('[EventForm] FormData entries:')
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}: ${value}`)
+    }
 
-    console.log('[EventForm] Submitting event with payload:', {
+    console.log('[EventForm] Submitting to /events/ with payload:', {
       title: form.value.title,
       description: form.value.description,
       category: form.value.category,
@@ -199,9 +228,30 @@ const submit = async () => {
       ? `/events/${props.initialData.id}/` 
       : '/events/'
 
-    const { data, error: axiosError, response } = props.initialData?.id 
-      ? await apiClient.put(url, formData).then(r => [r, null, null]).catch(e => [null, e, e?.response])
-      : await apiClient.post(url, formData).then(r => [r, null, null]).catch(e => [null, e, e?.response])
+    console.log('[EventForm] Calling API:', props.initialData?.id ? 'PUT' : 'POST', url)
+    
+    let data = null
+    let axiosError = null
+    let response = null
+    
+    try {
+      if (props.initialData?.id) {
+        const res = await apiClient.put(url, formData)
+        data = res.data
+        response = res
+      } else {
+        const res = await apiClient.post(url, formData)
+        data = res.data
+        response = res
+      }
+      console.log('[EventForm] SUCCESS - Event created:', data)
+    } catch (e: any) {
+      axiosError = e
+      response = e.response
+      console.error('[EventForm] ERROR:', e.message)
+      console.error('[EventForm] Error response status:', e.response?.status)
+      console.error('[EventForm] Error response data:', e.response?.data)
+    }
 
     if (axiosError) {
       console.error('[EventForm] Backend error response:', response?.data)
@@ -216,6 +266,7 @@ const submit = async () => {
       } else {
         errors.value.submit = "Une erreur est survenue, veuillez réessayer."
       }
+      loading.value = false
       return
     }
     

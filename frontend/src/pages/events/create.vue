@@ -169,10 +169,10 @@ onMounted(loadCategories)
     <div class="hero-card mb-6">
       <div>
         <h3 class="text-h3 mb-2">
-          Submit a New Event
+          Soumettre un nouvel événement
         </h3>
         <p class="text-medium-emphasis mb-0">
-          Create a polished listing. Every submission is sent for admin validation before it goes live.
+          Créez une annonce soignée. Chaque soumission est envoyée pour validation admin avant d'être publiée.
         </p>
       </div>
 
@@ -181,7 +181,7 @@ onMounted(loadCategories)
         to="/events"
         prepend-icon="tabler-arrow-left"
       >
-        Back to Events
+        Retour aux événements
       </VBtn>
     </div>
 
@@ -362,7 +362,7 @@ onMounted(loadCategories)
             >
               <VCheckbox
                 v-model="form.isFree"
-                label="Free event"
+                label="Événement gratuit"
               />
             </VCol>
 
@@ -374,13 +374,13 @@ onMounted(loadCategories)
                   :disabled="isSubmitDisabled"
                   :loading="isSubmitting"
                 >
-                  Submit for Validation
+                  Soumettre pour validation
                 </VBtn>
                 <VBtn
                   variant="tonal"
                   to="/events"
                 >
-                  Cancel
+                  Annuler
                 </VBtn>
               </div>
             </VCol>

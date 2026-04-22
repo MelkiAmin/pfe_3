@@ -85,7 +85,7 @@ onMounted(loadWithdrawals)
           <tr v-for="wr in withdrawals" :key="wr.id">
             <td>#{{ wr.id }}</td>
             <td>{{ wr.user?.email || wr.user }}</td>
-            <td class="font-weight-bold">{{ Number(wr.amount).toFixed(2) }} €</td>
+            <td class="font-weight-bold">{{ Number(wr.amount).toFixed(2) }} DT</td>
             <td>{{ wr.method }}</td>
             <td>
               <VChip :color="statusColor(wr.status)" size="small" variant="tonal">

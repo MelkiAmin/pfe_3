@@ -15,7 +15,28 @@ const authStore = useAuthStore()
 const isHomePage = computed(() => route.path === '/')
 
 const showChatbot = computed(() => {
-  return authStore.role === 'attendee' && isHomePage.value
+  const hasToken = Boolean(authStore.accessToken || localStorage.getItem('auth_access_token'))
+  
+  let userRole = authStore.role
+  if (!userRole) {
+    try {
+      const userData = localStorage.getItem('auth_user')
+      if (userData) {
+        const parsed = JSON.parse(userData)
+        userRole = parsed?.role
+      }
+    }
+    catch {
+      userRole = null
+    }
+  }
+  
+  const isAttendee = userRole === 'attendee'
+  const shouldShow = hasToken && isAttendee
+  
+  console.log('[Layout] Chatbot visibility - role from store:', authStore.role, 'role from storage:', userRole, 'isAttendee:', isAttendee, 'hasToken:', hasToken, 'shouldShow:', shouldShow)
+  
+  return shouldShow
 })
 
 const navigationItems = computed(() => {
@@ -214,10 +235,11 @@ const isActive = (path: string) => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.5rem;
-  backdrop-filter: blur(18px);
-  background: rgba(var(--v-theme-surface), 0.78);
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  padding: 0.75rem 2rem;
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(99, 102, 241, 0.06);
 }
 
 .brand-link,
@@ -232,31 +254,35 @@ const isActive = (path: string) => {
 .topbar__logo {
   display: grid;
   place-items: center;
-  inline-size: 3rem;
-  block-size: 3rem;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-info)));
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
   color: white;
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 800;
-  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.28);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
 }
 
 .topbar__title {
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-size: 1.1rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .topbar__subtitle {
-  font-size: 0.84rem;
-  color: rgba(var(--v-theme-on-surface), 0.62);
+  font-size: 0.8rem;
+  color: rgba(var(--v-theme-on-surface), 0.5);
 }
 
 .topbar__nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .nav-pill,
@@ -265,38 +291,43 @@ const isActive = (path: string) => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.78rem 1rem;
+  padding: 0.65rem 1.1rem;
   border: 1px solid transparent;
-  border-radius: 999px;
-  color: rgba(var(--v-theme-on-surface), 0.74);
+  border-radius: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.7);
   text-decoration: none;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .login-btn {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-info)));
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
   color: white;
   font-weight: 600;
-  padding: 0.7rem 1.25rem;
-  box-shadow: 0 4px 14px rgba(var(--v-theme-primary), 0.3);
+  padding: 0.6rem 1.25rem;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  border: none;
 }
 
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(var(--v-theme-primary), 0.4);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.45);
 }
 
 .nav-pill:hover,
 .wallet-link:hover,
 .nav-pill--active {
-  color: rgb(var(--v-theme-primary));
-  border-color: rgba(var(--v-theme-primary), 0.12);
-  background: rgba(var(--v-theme-primary), 0.08);
+  color: #6366F1;
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.15);
+  font-weight: 600;
 }
 
 .role-chip {
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 10px;
 }
 
 .vertical-layout-content {
@@ -305,9 +336,9 @@ const isActive = (path: string) => {
 }
 
 .home-footer {
-  background: linear-gradient(180deg, rgba(var(--v-theme-surface), 0.95) 0%, rgba(var(--v-theme-surface-variant), 1) 100%);
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  padding: 3rem 2rem 1.5rem;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+  border-top: 1px solid rgba(99, 102, 241, 0.08);
+  padding: 4rem 2rem 1.5rem;
   margin-top: auto;
 }
 
@@ -316,7 +347,7 @@ const isActive = (path: string) => {
   margin: 0 auto;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 3rem;
+  gap: 4rem;
 }
 
 .footer-brand {
@@ -331,8 +362,8 @@ const isActive = (path: string) => {
   width: 56px;
   height: 56px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-info)));
-  box-shadow: 0 8px 24px rgba(var(--v-theme-primary), 0.25);
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
 }
 
 .logo-letter {
@@ -343,20 +374,24 @@ const isActive = (path: string) => {
 
 .footer-brand-text h3 {
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 700;
   margin: 0;
   letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .footer-brand-text p {
   font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--v-theme-on-surface), 0.5);
   margin: 0.25rem 0 0;
 }
 
 .footer-sections {
   display: flex;
-  gap: 3rem;
+  gap: 4rem;
   flex-wrap: wrap;
 }
 
@@ -365,24 +400,27 @@ const isActive = (path: string) => {
 }
 
 .footer-section h4 {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 700;
   margin: 0 0 1rem;
   color: rgba(var(--v-theme-on-surface), 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .footer-section p {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.85rem;
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  margin: 0 0 0.75rem;
 }
 
 .footer-section a {
-  color: rgb(var(--v-theme-primary));
+  color: #6366F1;
   text-decoration: none;
+  font-weight: 500;
 }
 
 .footer-section a:hover {
