@@ -117,30 +117,43 @@ const handleRegister = async () => {
 
   isLoading.value = true
   try {
-    const response = await register({
+    const payload = {
       email: form.value.email,
       first_name: form.value.firstName,
       last_name: form.value.lastName,
-      phone: form.value.phone,
+      phone: form.value.phone || '',
       password: form.value.password,
       password_confirm: form.value.confirmPassword,
-      role: form.value.role,
-    })
+      role: form.value.role || 'attendee',
+    }
+    
+    const response = await register(payload)
 
-    // Check if account is pending (needs admin approval)
-    if (response?.status === 'pending') {
-      successMessage.value = 'Votre compte est créé avec succès. Vous recevrez un email après validation par un administrateur.'
-      setTimeout(() => {
-        router.replace('/login')
-      }, 3000)
+    if (form.value.role === 'organisateur') {
+      successMessage.value = 'Votre compte est créé avec succès.'
+      setTimeout(() => router.replace('/login'), 3000)
     } else {
-      // Show OTP dialog only if account is approved (auto-approved path)
-      otpEmail.value = form.value.email
-      showOtpDialog.value = true
+      successMessage.value = 'Compte créé! Redirection...'
+      setTimeout(() => router.replace('/login'), 2000)
     }
   }
-  catch (error: unknown) {
-    errorMessage.value = extractErrorMessage(error)
+  catch (err: unknown) {
+    console.error('[Register] Error:', err)
+    let msg = 'Erreur de création'
+    if (typeof err === 'object' && err !== null) {
+      const e = err as Record<string, unknown>
+      if (e.response) {
+        const resp = e.response as { data: unknown }
+        const data = resp.data as Record<string, unknown>
+        if (data.detail) msg = String(data.detail)
+        else if (data.email) msg = Array.isArray(data.email) ? data.email[0] : String(data.email)
+        else if (data.password) msg = Array.isArray(data.password) ? data.password[0] : String(data.password)
+        else msg = JSON.stringify(data)
+      } else if (e.message) {
+        msg = String(e.message)
+      }
+    }
+    errorMessage.value = msg
   }
   finally {
     isLoading.value = false

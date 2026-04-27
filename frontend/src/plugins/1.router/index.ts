@@ -23,7 +23,7 @@ const router = createRouter({
 
 router.beforeEach(async (to, from) => {
   console.log('[Router] Navigating from:', from.path, 'to:', to.path)
-  
+
   const authStore = useAuthStore(store)
   authStore.bootstrap()
 
@@ -37,10 +37,6 @@ router.beforeEach(async (to, from) => {
     || to.path === '/tickets/verify'
     || to.path === '/'
   const isPublicRoute = Boolean(to.meta.public) || isExplicitPublicPath
-
-  const adminOnly = to.path.startsWith('/admin')
-  const organizerOnly = to.path.startsWith('/organizer')
-  const allowedRoles = Array.isArray(to.meta.roles) ? to.meta.roles as string[] : null
 
   if (!accessToken && isAuthPage)
     return true
@@ -58,6 +54,10 @@ router.beforeEach(async (to, from) => {
   if (isAuthPage && accessToken)
     return { path: authStore.dashboardRouteByRole(role) }
 
+  const adminOnly = to.path.startsWith('/admin')
+  const organizerOnly = to.path.startsWith('/organizer')
+  const allowedRoles = Array.isArray(to.meta.roles) ? to.meta.roles as string[] : null
+
   if (adminOnly && role !== 'admin')
     return { path: '/' }
 
@@ -66,6 +66,8 @@ router.beforeEach(async (to, from) => {
 
   if (allowedRoles && !allowedRoles.includes(role))
     return { path: authStore.dashboardRouteByRole(role) }
+
+  console.log('[Router] Navigation allowed for:', to.path)
 })
 
 export { router }

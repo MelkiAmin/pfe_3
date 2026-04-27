@@ -21,6 +21,7 @@ class EventListSerializer(serializers.ModelSerializer):
     organizer_name = serializers.CharField(source='organizer.full_name', read_only=True)
     tickets_sold = serializers.ReadOnlyField()
     is_sold_out = serializers.ReadOnlyField()
+    is_expired = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     reviews_count = serializers.ReadOnlyField()
     min_price = serializers.SerializerMethodField()
@@ -31,6 +32,7 @@ class EventListSerializer(serializers.ModelSerializer):
             'id', 'title', 'slug', 'cover_image', 'event_type', 'status',
             'category', 'organizer_name', 'start_date', 'end_date',
             'city', 'country', 'is_free', 'min_price', 'tickets_sold', 'is_sold_out',
+            'is_expired', 'tickets_total', 'tickets_available',
             'average_rating', 'reviews_count',
         ]
 
@@ -61,6 +63,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
 class EventCreateUpdateSerializer(serializers.ModelSerializer):
     ticket_price = serializers.DecimalField(max_digits=10, decimal_places=2, write_only=True, required=False, allow_null=True, default=0)
     ticket_quantity = serializers.IntegerField(min_value=1, write_only=True, required=False, allow_null=True, default=100)
+    tickets_available = serializers.IntegerField(min_value=1, write_only=True, required=False, allow_null=True, default=100)
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     start_date = serializers.DateTimeField(required=False, allow_null=True)
     end_date = serializers.DateTimeField(required=False, allow_null=True)
@@ -71,7 +74,7 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'category', 'cover_image',
             'event_type', 'venue_name', 'address', 'city', 'country', 'online_url',
             'start_date', 'end_date', 'max_capacity', 'is_free', 'tags',
-            'ticket_price', 'ticket_quantity',
+            'ticket_price', 'ticket_quantity', 'tickets_available',
         ]
         extra_kwargs = {
             'category': {'required': False, 'allow_null': True, 'allow_blank': True},
@@ -103,11 +106,16 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
             if not attrs.get('end_date'):
                 attrs['end_date'] = attrs.get('start_date')
             
+            tickets_available = attrs.get('tickets_available', 0)
+            if not tickets_available or tickets_available < 1:
+                raise serializers.ValidationError({'tickets_available': 'Le nombre de billets disponibles doit être au moins 1'})
+            
             attrs['status'] = Event.Status.PENDING
 
         logger.info(f"Validated attrs: {attrs.keys()}")
         logger.info(f"  start_date: {attrs.get('start_date')}")
         logger.info(f"  end_date: {attrs.get('end_date')}")
+        logger.info(f"  tickets_available: {attrs.get('tickets_available')}")
         return super().validate(attrs)
 
     def create(self, validated_data):
@@ -121,6 +129,7 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
         
         ticket_price = validated_data.pop('ticket_price') or 0
         ticket_quantity = validated_data.pop('ticket_quantity') or 100
+        tickets_available = validated_data.pop('tickets_available') or ticket_quantity
         title = validated_data.get('title') or ''
         
         category_value = validated_data.pop('category', None)
@@ -153,6 +162,8 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
             start_date=validated_data.get('start_date'),
             end_date=validated_data.get('end_date'),
             max_capacity=validated_data.get('max_capacity'),
+            tickets_total=ticket_quantity or 100,
+            tickets_available=tickets_available,
             is_free=validated_data.get('is_free', False),
             tags=validated_data.get('tags') or [],
             slug=slug,
@@ -160,7 +171,7 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
             status=status,
         )
         
-        logger.info(f"EVENT CREATED: id={event.id}, status={event.status}")
+        logger.info(f"EVENT CREATED: id={event.id}, status={event.status}, tickets_available={event.tickets_available}")
 
         TicketType.objects.create(
             event=event,

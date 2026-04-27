@@ -48,6 +48,8 @@ class Event(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     max_capacity = models.PositiveIntegerField(null=True, blank=True)
+    tickets_total = models.PositiveIntegerField(default=0)
+    tickets_available = models.PositiveIntegerField(default=0)
     is_free = models.BooleanField(default=False)
     tags = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,9 +68,9 @@ class Event(models.Model):
 
     @property
     def is_sold_out(self) -> bool:
-        if self.max_capacity is None:
-            return False
-        return self.tickets_sold >= self.max_capacity
+        if self.tickets_available is None or self.tickets_available == 0:
+            return True
+        return self.tickets_available <= 0
 
     @property
     def reviews_count(self) -> int:
@@ -79,6 +81,11 @@ class Event(models.Model):
         data = self.reviews.aggregate(avg=Avg('rating'))
         avg = data.get('avg')
         return float(avg) if avg is not None else 0.0
+
+    @property
+    def is_expired(self) -> bool:
+        from django.utils import timezone
+        return self.start_date <= timezone.now()
 
 class Favorite(models.Model):
     user = models.ForeignKey(

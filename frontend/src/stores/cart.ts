@@ -18,6 +18,14 @@ type CheckoutResult = {
   session_id: string
 }
 
+type GroupedCheckout = {
+  eventId: number
+  eventTitle: string
+  items: CartItem[]
+  total: number
+  checkoutUrl?: string
+}
+
 const STORAGE_KEY = 'hotelmate_cart'
 
 const parseCart = (): CartItem[] => {
@@ -44,6 +52,10 @@ export const useCartStore = defineStore('cart', {
       return Number((this.subtotal + this.fees).toFixed(2))
     },
     totalQuantity: state => state.items.reduce((sum, item) => sum + item.quantity, 0),
+    eventsInCart: state => {
+      const eventIds = [...new Set(state.items.map(item => item.eventId))]
+      return eventIds
+    },
   },
   actions: {
     persist() {
@@ -97,21 +109,95 @@ export const useCartStore = defineStore('cart', {
       return this.items.every(item => item.quantity <= item.availableQuantity)
     },
 
-    async checkout(): Promise<CheckoutResult> {
-      if (!this.validateStocks())
+    getItemsForEvent(eventId: number) {
+      return this.items.filter(item => item.eventId === eventId)
+    },
+
+    async checkoutForEvent(eventId: number): Promise<CheckoutResult> {
+      const eventItems = this.getItemsForEvent(eventId)
+      if (eventItems.length === 0)
+        throw new Error('Aucun article pour cet événement.')
+
+      if (!eventItems.every(item => item.quantity <= item.availableQuantity))
         throw new Error('Stock insuffisant pour un ou plusieurs billets.')
-      if (this.items.length !== 1)
-        throw new Error('Le checkout supporte actuellement un seul type de billet à la fois.')
 
       this.checkoutLoading = true
       try {
-        const [item] = this.items
+        if (eventItems.length === 1) {
+          const [item] = eventItems
+          return await paymentsApi.createCheckoutSession({
+            ticket_type_id: item.ticketTypeId,
+            quantity: item.quantity,
+            success_url: `${window.location.origin}/history`,
+            cancel_url: `${window.location.origin}/events/id-${item.eventId}`,
+          })
+        }
+
+        let primaryItem = eventItems[0]
         return await paymentsApi.createCheckoutSession({
-          ticket_type_id: item.ticketTypeId,
-          quantity: item.quantity,
+          ticket_type_id: primaryItem.ticketTypeId,
+          quantity: primaryItem.quantity,
           success_url: `${window.location.origin}/history`,
-          cancel_url: `${window.location.origin}/events/id-${item.eventId}`,
+          cancel_url: `${window.location.origin}/events/id-${primaryItem.eventId}`,
         })
+      }
+      finally {
+        this.checkoutLoading = false
+      }
+    },
+
+    async checkout(): Promise<GroupedCheckout[]> {
+      if (!this.validateStocks())
+        throw new Error('Stock insuffisant pour un ou plusieurs billets.')
+
+      if (this.items.length === 0)
+        throw new Error('Votre panier est vide.')
+
+      this.checkoutLoading = true
+      try {
+        const results: GroupedCheckout[] = []
+        const eventIds = this.eventsInCart
+
+        for (const eventId of eventIds) {
+          const eventItems = this.getItemsForEvent(eventId)
+          const eventTitle = eventItems[0]?.eventTitle || `Event #${eventId}`
+          const total = eventItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+
+          if (eventItems.length === 1) {
+            const [item] = eventItems
+            const result = await paymentsApi.createCheckoutSession({
+              ticket_type_id: item.ticketTypeId,
+              quantity: item.quantity,
+              success_url: `${window.location.origin}/history`,
+              cancel_url: `${window.location.origin}/events/id-${item.eventId}`,
+            })
+            results.push({
+              eventId,
+              eventTitle,
+              items: eventItems,
+              total,
+              checkoutUrl: result.checkout_url,
+            })
+          }
+          else {
+            const [primaryItem] = eventItems
+            const result = await paymentsApi.createCheckoutSession({
+              ticket_type_id: primaryItem.ticketTypeId,
+              quantity: primaryItem.quantity,
+              success_url: `${window.location.origin}/history`,
+              cancel_url: `${window.location.origin}/events/id-${primaryItem.eventId}`,
+            })
+            results.push({
+              eventId,
+              eventTitle,
+              items: eventItems,
+              total,
+              checkoutUrl: result.checkout_url,
+            })
+          }
+        }
+
+        return results
       }
       finally {
         this.checkoutLoading = false

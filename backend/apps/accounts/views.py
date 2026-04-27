@@ -308,8 +308,8 @@ class ApproveOrganizerView(APIView):
 
         if user.role == User.Role.ORGANIZER:
             try:
-                from apps.accounts.serializers import send_verification_email
-                send_verification_email(user)
+                from apps.accounts.serializers import send_approval_email
+                send_approval_email(user)
             except Exception:
                 pass
 

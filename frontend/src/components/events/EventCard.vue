@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import LazyImage from '@/components/common/LazyImage.vue'
 import type { EventListItem } from '@/services/api'
 
@@ -8,20 +9,34 @@ const props = defineProps<{
 
 const router = useRouter()
 
-const eventDetailPath = computed(() => {
-  const safeSlug = typeof props.event.slug === 'string' ? props.event.slug.trim() : ''
-  const path = safeSlug ? `/events/${safeSlug}` : `/events/id-${props.event.id}`
-  return path
-})
-
 const handleConsultClick = () => {
-  router.push(eventDetailPath.value)
+  const event = props.event
+  if (!event || !event.id) return
+
+  const slug = event.slug || `id-${event.id}`
+  const timestamp = Date.now()
+  
+  router.push({
+    path: `/events/${slug}`,
+    query: { t: timestamp }
+  })
 }
 
 const priceLabel = computed(() => {
   if (props.event.is_free) return 'Gratuit'
   if (props.event.min_price) return `À partir de ${props.event.min_price} DT`
   return 'Billets disponibles'
+})
+
+const isSoldOut = computed(() => {
+  return props.event.tickets_available === 0 || props.event.is_sold_out
+})
+
+const ticketsLabel = computed(() => {
+  const available = props.event.tickets_available
+  if (!available && available !== 0) return ''
+  if (available === 0 || isSoldOut.value) return 'Complet'
+  return `${available} billets disponibles`
 })
 
 const formatDate = (dateStr: string) => {
@@ -50,12 +65,28 @@ const formatDate = (dateStr: string) => {
           {{ priceLabel }}
         </VChip>
         <VChip
-          v-if="event.is_sold_out"
+          v-if="ticketsLabel && !isSoldOut"
+          color="info"
+          variant="flat"
+          size="small"
+        >
+          {{ ticketsLabel }}
+        </VChip>
+        <VChip
+          v-if="isSoldOut"
           color="error"
           variant="flat"
           size="small"
         >
           Complet
+        </VChip>
+        <VChip
+          v-if="event.is_expired"
+          color="warning"
+          variant="flat"
+          size="small"
+        >
+          Expiré
         </VChip>
       </div>
       <div v-if="event.category" class="event-card__category">
@@ -104,7 +135,6 @@ const formatDate = (dateStr: string) => {
           size="small"
           rounded="lg"
           class="event-card__btn"
-          :to="eventDetailPath"
           @click="handleConsultClick"
         >
           <VIcon icon="tabler-arrow-right" size="18" class="mr-1" />

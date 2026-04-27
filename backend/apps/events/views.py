@@ -135,11 +135,11 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         import logging
+        from django.utils import timezone
         logger = logging.getLogger(__name__)
         
         qs = super().get_queryset()
 
-        # Custom filters
         date_from = self.request.query_params.get('date_from')
         date_to = self.request.query_params.get('date_to')
         is_free = self.request.query_params.get('is_free')
@@ -153,28 +153,34 @@ class EventViewSet(viewsets.ModelViewSet):
 
         if self.action == 'list':
             user = self.request.user
-            logger.info(f"get_queryset list called by user: {user.email}, role: {user.role}, authenticated: {user.is_authenticated}")
+            user_email = getattr(user, 'email', 'anonymous') if user else 'anonymous'
+            user_auth = user.is_authenticated if user else False
+            user_role = str(user.role) if user and hasattr(user, 'role') else ''
             
-            if user.is_authenticated and str(user.role) == str(user.Role.ADMIN):
-                logger.info("Admin - returning all events")
+            if user_auth and user_role == str(user.Role.ADMIN):
                 return qs
-            if user.is_authenticated and str(user.role) == str(user.Role.ORGANIZER):
-                logger.info("Organizer - returning own events + approved")
-                return qs.filter(Q(organizer=self.request.user) | Q(status=Event.Status.APPROVED)).distinct()
+            if user_auth and user_role == str(user.Role.ORGANIZER):
+                return qs.filter(
+                    Q(organizer=self.request.user) | 
+                    Q(status=Event.Status.APPROVED, start_date__gt=timezone.now())
+                ).distinct()
 
-            logger.info("Anonymous - returning only approved events")
-            qs = qs.filter(status=Event.Status.APPROVED)
+            return qs.filter(status=Event.Status.APPROVED, start_date__gt=timezone.now())
 
         if self.action == 'retrieve':
             user = self.request.user
-            if user.is_authenticated and str(user.role) == str(user.Role.ADMIN):
+            user_auth = user.is_authenticated if user else False
+            user_role = str(user.role) if user and hasattr(user, 'role') else ''
+            
+            if user_auth and user_role == str(user.Role.ADMIN):
                 return qs
-            if user.is_authenticated and str(user.role) == str(user.Role.ORGANIZER):
+            if user_auth and user_role == str(user.Role.ORGANIZER):
                 return qs.filter(
-                    Q(organizer=user) | Q(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED]),
+                    Q(organizer=user) | 
+                    Q(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED], start_date__gt=timezone.now()),
                 ).distinct()
 
-            return qs.filter(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED])
+            return qs.filter(status__in=[Event.Status.APPROVED, Event.Status.COMPLETED], start_date__gt=timezone.now())
         return qs
 
     @extend_schema(
@@ -186,6 +192,14 @@ class EventViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], url_path='featured')
     def featured_events(self, request):
+        from django.utils import timezone
+        from django.core.cache import cache
+        
+        cache_key = 'events:featured'
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data)
+        
         try:
             limit_param = request.query_params.get('limit', '6')
             limit = int(limit_param) if limit_param else 6
@@ -197,9 +211,14 @@ class EventViewSet(viewsets.ModelViewSet):
         if limit > 20:
             limit = 20
 
-        events = Event.objects.filter(status=Event.Status.APPROVED).order_by('-created_at')[:limit]
+        events = Event.objects.filter(
+            status=Event.Status.APPROVED,
+            start_date__gt=timezone.now()
+        ).select_related('organizer', 'category').order_by('-created_at')[:limit]
         serializer = EventListSerializer(events, many=True, context={'request': request})
-        return Response(serializer.data)
+        data = serializer.data
+        cache.set(cache_key, data, timeout=300)
+        return Response(data)
 
     @extend_schema(
         tags=['Events'], summary='Change event status (cancel / complete)',
@@ -307,7 +326,7 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], url_path='approve')
     def approve_event(self, request, pk=None):
         from apps.notifications.models import Notification
-        from apps.notifications.tasks import create_notification
+        from apps.notifications.tasks import create_notification, send_sendgrid_email
         
         event = self.get_object()
         event.status = Event.Status.APPROVED
@@ -321,6 +340,17 @@ class EventViewSet(viewsets.ModelViewSet):
             data={'event_id': event.id},
         )
         
+        try:
+            send_sendgrid_email(
+                to_email=event.organizer.email,
+                subject=f'Event approved: {event.title}',
+                text_content=f'Your event "{event.title}" has been approved and is now live on Planova!',
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to send approval email: {e}")
+        
         return Response(EventDetailSerializer(event, context={'request': request}).data)
 
     @extend_schema(
@@ -333,7 +363,7 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], url_path='reject')
     def reject_event(self, request, pk=None):
         from apps.notifications.models import Notification
-        from apps.notifications.tasks import create_notification
+        from apps.notifications.tasks import create_notification, send_sendgrid_email
         
         event = self.get_object()
         reason = request.data.get('reason', '')
@@ -347,6 +377,17 @@ class EventViewSet(viewsets.ModelViewSet):
             message=f'Your event "{event.title}" was not approved. Reason: {reason or "Please contact support for details."}',
             data={'event_id': event.id},
         )
+        
+        try:
+            send_sendgrid_email(
+                to_email=event.organizer.email,
+                subject=f'Event rejected: {event.title}',
+                text_content=f'Your event "{event.title}" was not approved. Reason: {reason or "Please contact support for details."}',
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to send rejection email: {e}")
         
         return Response(EventDetailSerializer(event, context={'request': request}).data)
 
@@ -490,7 +531,7 @@ EventViewSet.similar_events = similar_events
 
 # ── Chatbot AI ────────────────────────────────────────────────────────────
 class ChatbotViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     
     CATEGORY_KEYWORDS = {
         'concert': ['concert', 'musique', 'musical', 'festival', 'guitar', 'piano', 'rock', 'jazz', ' RAP', 'chanson'],

@@ -76,11 +76,10 @@ const load = async () => {
       console.log('First event:', JSON.stringify(events.value[0]))
     }
   }
-  catch (error: any) {
-    console.error('LOAD ERROR:', error?.message || error)
-    console.error('Response:', error?.response)
-    events.value = []
-    statusCounts.value = { pending_count: 0, approved_count: 0, rejected_count: 0 }
+catch (error: any) {
+    console.error('[LoadStatus] Error response:', error.response?.data)
+    const backendDetail = error.response?.data?.detail
+    errorMessage.value = backendDetail || 'Impossible de charger les evenements.'
   }
   finally {
     loading.value = false

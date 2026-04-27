@@ -8,6 +8,8 @@ const authStore = useAuthStore()
 const drawer = ref(false)
 const checkoutError = ref('')
 
+const hasMultipleEvents = computed(() => cartStore.eventsInCart.length > 1)
+
 const goCheckout = async () => {
   checkoutError.value = ''
   if (!authStore.isAuthenticated) {
@@ -16,12 +18,27 @@ const goCheckout = async () => {
   }
 
   try {
-    const checkout = await cartStore.checkout()
-    window.location.href = checkout.checkout_url
+    if (hasMultipleEvents.value) {
+      checkoutError.value = 'Veuillez vérifier les billets pour chaque événement séparément.'
+      return
+    }
+
+    const results = await cartStore.checkout()
+    if (results.length > 0 && results[0].checkoutUrl) {
+      window.location.href = results[0].checkoutUrl
+    }
+    else {
+      checkoutError.value = 'Aucun article à payer.'
+    }
   }
   catch (error: any) {
     checkoutError.value = error?.message || 'Impossible de lancer le paiement.'
   }
+}
+
+const goToCartPage = () => {
+  drawer.value = false
+  router.push('/cart')
 }
 </script>
 
@@ -126,6 +143,18 @@ const goCheckout = async () => {
           @click="goCheckout"
         >
           Passer au paiement
+        </VBtn>
+
+        <VBtn
+          v-if="hasMultipleEvents"
+          block
+          size="large"
+          variant="tonal"
+          class="mt-2"
+          @click="goToCartPage"
+        >
+          <VIcon icon="tabler-shopping-cart" class="mr-2" />
+          Voir le panier
         </VBtn>
       </div>
     </VNavigationDrawer>

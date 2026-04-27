@@ -30,6 +30,7 @@ declare module 'vue-router/auto-routes' {
     'admin-users': RouteRecordInfo<'admin-users', '/admin/users', Record<never, never>, Record<never, never>>,
     'admin-validations': RouteRecordInfo<'admin-validations', '/admin/validations', Record<never, never>, Record<never, never>>,
     'admin-withdrawals': RouteRecordInfo<'admin-withdrawals', '/admin/withdrawals', Record<never, never>, Record<never, never>>,
+    'cart': RouteRecordInfo<'cart', '/cart', Record<never, never>, Record<never, never>>,
     'checkout-order-id': RouteRecordInfo<'checkout-order-id', '/checkout/:orderId', { orderId: ParamValue<true> }, { orderId: ParamValue<false> }>,
     'dashboard-tickets': RouteRecordInfo<'dashboard-tickets', '/dashboard/tickets', Record<never, never>, Record<never, never>>,
     'events': RouteRecordInfo<'events', '/events', Record<never, never>, Record<never, never>>,

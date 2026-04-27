@@ -32,9 +32,12 @@ const showChatbot = computed(() => {
   }
   
   const isAttendee = userRole === 'attendee'
-  const shouldShow = hasToken && isAttendee
+  const isHome = route.path === '/'
+  const isEvents = route.path === '/events'
+  const isPublicPage = isHome || isEvents
+  const shouldShow = isPublicPage || !hasToken || (hasToken && isAttendee)
   
-  console.log('[Layout] Chatbot visibility - role from store:', authStore.role, 'role from storage:', userRole, 'isAttendee:', isAttendee, 'hasToken:', hasToken, 'shouldShow:', shouldShow)
+  console.log('[Layout] Chatbot visibility - role from store:', authStore.role, 'role from storage:', userRole, 'isAttendee:', isAttendee, 'hasToken:', hasToken, 'isHome:', isHome, 'isEvents:', isEvents, 'shouldShow:', shouldShow)
   
   return shouldShow
 })

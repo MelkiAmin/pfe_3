@@ -42,7 +42,16 @@ const onSubmit = async () => {
     await router.replace(redirect)
   }
   catch (error: any) {
-    formError.value = error?.message || authStore.error || 'Erreur de connexion.'
+    console.error('[Login] Error response:', error.response?.data)
+    const backendDetail = error.response?.data?.detail
+    const backendStatus = error.response?.data?.status
+    if (backendDetail) {
+      formError.value = backendDetail
+    } else if (backendStatus) {
+      formError.value = error.response?.data?.message || authStore.error || 'Erreur de connexion.'
+    } else {
+      formError.value = error?.message || authStore.error || 'Erreur de connexion.'
+    }
   }
 }
 
@@ -65,7 +74,9 @@ const handleForgotPassword = async () => {
     resetSuccess.value = true
   }
   catch (error: any) {
-    resetError.value = error?.message || 'Échec de l\'envoi de l\'email de réinitialisation. Veuillez réessayer.'
+    console.error('[ForgotPassword] Error response:', error.response?.data)
+    const backendDetail = error.response?.data?.detail
+    resetError.value = backendDetail || 'Échec de l\'envoi de l\'email de réinitialisation. Veuillez réessayer.'
   }
   finally {
     resetLoading.value = false

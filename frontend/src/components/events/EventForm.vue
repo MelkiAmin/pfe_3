@@ -31,6 +31,7 @@ const form = ref({
   city: '',
   is_free: false,
   price: 0,
+  tickets_available: 100,
 })
 
 const categories = ref([
@@ -75,6 +76,7 @@ const resetForm = () => {
       city: props.initialData.city || '',
       is_free: props.initialData.is_free || false,
       price: props.initialData.price || 0,
+      tickets_available: props.initialData.tickets_available || 100,
     }
     imagePreview.value = props.initialData.cover_image || null
   } else {
@@ -90,6 +92,7 @@ const resetForm = () => {
       city: '',
       is_free: false,
       price: 0,
+      tickets_available: 100,
     }
   }
   imagePreview.value = null
@@ -150,6 +153,10 @@ const validate = () => {
     errors.value.price = 'Le prix doit être supérieur à 0'
   }
 
+  if (!form.value.tickets_available || form.value.tickets_available < 1) {
+    errors.value.tickets_available = 'Le nombre de billets doit être au moins 1'
+  }
+
   return Object.keys(errors.value).length === 0
 }
 
@@ -201,7 +208,8 @@ const submit = async () => {
     
     const price = form.value.is_free ? '0' : String(form.value.price || 0)
     formData.append('ticket_price', price)
-    formData.append('ticket_quantity', '100')
+    formData.append('ticket_quantity', String(form.value.tickets_available || 100))
+    formData.append('tickets_available', String(form.value.tickets_available || 100))
 
     if (imageFile.value) {
       formData.append('cover_image', imageFile.value)
@@ -221,6 +229,7 @@ const submit = async () => {
       city: form.value.city,
       is_free: form.value.is_free,
       ticket_price: price,
+      tickets_available: form.value.tickets_available,
       has_image: !!imageFile.value,
     })
 
@@ -502,6 +511,16 @@ defineExpose({ open, close })
                 class="mt-3"
                 :error="!!errors.price"
                 :error-messages="errors.price"
+                :disabled="!isOrganizer"
+              />
+              <VTextField
+                v-model.number="form.tickets_available"
+                label="Nombre de billets disponibles"
+                type="number"
+                min="1"
+                class="mt-3"
+                :error="!!errors.tickets_available"
+                :error-messages="errors.tickets_available"
                 :disabled="!isOrganizer"
               />
             </VCol>

@@ -182,8 +182,11 @@ class AdminDashboardView(APIView):
         responses={200: admin_dashboard_serializer},
     )
     def get(self, request):
+        from django.db.models import Sum, Count
+        
         completed = Payment.objects.filter(status='completed')
-        total_rev = sum(p.amount for p in completed)
+        total_rev = completed.aggregate(total=Sum('amount'))['total'] or 0
+        
         return Response({
             'total_users':        User.objects.count(),
             'total_organizers':   User.objects.filter(role='organizer').count(),
@@ -202,6 +205,7 @@ class AdminSystemStatsView(APIView):
         responses={200: system_stats_serializer},
     )
     def get(self, request):
+        from django.db.models import Sum
         from apps.payments.models import WithdrawalRequest
         try:
             from apps.support.models import SupportTicket
@@ -215,7 +219,7 @@ class AdminSystemStatsView(APIView):
             pending_kyc = 0
 
         completed = Payment.objects.filter(status='completed')
-        total_rev = sum(p.amount for p in completed)
+        total_rev = completed.aggregate(total=Sum('amount'))['total'] or 0
 
         return Response({
             'total_users':          User.objects.count(),

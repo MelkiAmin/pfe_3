@@ -34,8 +34,7 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
 const canShowChatbot = computed(() => {
   const role = authStore.role
-  const isAttendee = role === 'attendee' || role === 'utilisateur'
-  console.log('[Chatbot] Visibility check - role:', role, 'isAttendee:', isAttendee)
+  const isAttendee = role === 'attendee' || role === 'utilisateur' || !role
   return isAttendee
 })
 
@@ -64,15 +63,10 @@ const sendMessage = async () => {
   scrollToBottom()
 
   try {
-    const token = localStorage.getItem('accessToken')
     console.log('[Chatbot] Sending message:', msg)
-
     const response = await fetch('/api/events/chatbot/chat/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg }),
     })
 

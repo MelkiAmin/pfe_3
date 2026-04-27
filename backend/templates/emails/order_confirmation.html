@@ -9,7 +9,10 @@
     .header h1 { margin: 0; font-size: 22px; }
     .body { padding: 32px; }
     .info-box { background: #f0f7ff; border-left: 4px solid #1976d2; padding: 16px; border-radius: 4px; margin: 20px 0; }
+    .ticket-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin: 16px 0; background: #fafafa; }
     .ticket-badge { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 16px; font-weight: bold; margin: 4px 0; }
+    .qr-code { margin: 16px 0; text-align: center; }
+    .qr-code img { border: 1px solid #e0e0e0; border-radius: 8px; max-width: 150px; }
     .footer { background: #f8f8f8; padding: 16px 32px; font-size: 12px; color: #999; text-align: center; }
     .btn { display: inline-block; background: #1976d2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 16px; }
   </style>
@@ -27,18 +30,39 @@
         <p><strong>Nombre de billets :</strong> {{ ticket_count }}</p>
         <p><strong>Référence :</strong> #{{ payment.id }}</p>
       </div>
+      <h3 style="margin-top: 24px; margin-bottom: 8px;">Vos billets :</h3>
       {% for ticket in tickets %}
-      <div>
-        <span class="ticket-badge">Billet #{{ ticket.ticket_number }}</span>
-        {% if ticket.qr_code %}
-        <p style="font-size:12px;color:#666;">QR code disponible dans votre espace personnel.</p>
+      <div class="ticket-card">
+        <span class="ticket-badge">Billet #{{ ticket.ticket_number|truncatechars:8 }}</span>
+        <p style="font-size: 14px; color: #666; margin: 8px 0 0 0;">
+          Type : {{ ticket.ticket_type.name }} | Prix : {{ ticket.price_paid }} DT
+        </p>
+        {% with ticket.get_qr_code_url as qr_url %}
+        {% if qr_url %}
+        <div class="qr-code">
+          <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Scannez ce code QR à l'entrée :</p>
+          <img src="{{ qr_url|safe }}" alt="QR Code for Ticket #{{ ticket.ticket_number|truncatechars:8 }}" width="150" />
+        </div>
+        {% else %}
+        <p style="font-size: 12px; color: #999; margin-top: 8px;">Code QR en attente de génération.</p>
         {% endif %}
+        {% endwith %}
       </div>
       {% endfor %}
-      <p style="margin-top:24px;">Connectez-vous à votre compte pour accéder à vos billets et codes QR.</p>
+      <div style="margin-top: 24px; padding: 16px; background: #fff3e0; border-radius: 8px;">
+        <h4 style="margin: 0 0 8px 0;">📍 Informations sur l'événement</h4>
+        <p style="margin: 4px 0;"><strong>Date :</strong> {{ event.start_date|date:"d b Y à H:i" }}</p>
+        {% if event.venue_name %}
+        <p style="margin: 4px 0;"><strong>Lieu :</strong> {{ event.venue_name }}</p>
+        {% endif %}
+        {% if event.address %}
+        <p style="margin: 4px 0;"><strong>Adresse :</strong> {{ event.address }}</p>
+        {% endif %}
+      </div>
     </div>
     <div class="footer">
-      © Planova — Plateforme de billetterie événementielle
+      © Planova — Plateforme de billetterie événementielle<br />
+      Conservez ce message comme preuve de votre réservation.
     </div>
   </div>
 </body>

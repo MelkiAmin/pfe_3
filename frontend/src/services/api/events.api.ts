@@ -28,7 +28,7 @@ export type EventListParams = {
 
 export const eventsApi = {
   list(params?: EventListParams) {
-    return $api<PaginatedResponse<EventListItem>>('/events/', { query: params })
+    return $api<PaginatedResponse<EventListItem>>('/events/', { query: params, _skipAuth: true })
   },
 
   listFeatured(limit = 6) {

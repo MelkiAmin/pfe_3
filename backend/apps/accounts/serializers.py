@@ -23,6 +23,20 @@ def send_verification_email(user):
     except Exception:
         pass
 
+
+def send_approval_email(user):
+    """Send approval confirmation email to user."""
+    try:
+        from apps.notifications.tasks import send_sendgrid_email
+        login_link = 'https://planova.example.com/login'
+        send_sendgrid_email(
+            to_email=user.email,
+            subject='Planova - Account Approved',
+            text_content=f'Hello {user.first_name},\n\nYour account has been approved! You can now log in and manage your events.\n\nLogin: {login_link}\n\nBest regards,\nThe Planova Team',
+        )
+    except Exception:
+        pass
+
     return code
 
 
@@ -35,12 +49,23 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ['email', 'first_name', 'last_name', 'password', 'password_confirm', 'role', 'phone']
 
     def validate(self, attrs):
-        email = attrs.get('email', '').strip().lower()
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError({'email': 'Un utilisateur avec cet email existe déjà.'})
+        email = attrs.get('email', '').strip().lower() if attrs.get('email') else ''
         
-        if attrs.get('password') != attrs.get('password_confirm'):
-            raise serializers.ValidationError({'password': 'Les mots de passe ne correspondent pas.'})
+        if not email:
+            raise serializers.ValidationError({'email': ['Email est requis.']})
+        
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({'email': ['Un utilisateur avec cet email existe déjà.']})
+        
+        password = attrs.get('password')
+        password_confirm = attrs.get('password_confirm')
+        
+        if not password:
+            raise serializers.ValidationError({'password': ['Mot de passe est requis.']})
+        if not password_confirm:
+            raise serializers.ValidationError({'password_confirm': ['Confirmation du mot de passe est requise.']})
+        if password != password_confirm:
+            raise serializers.ValidationError({'non_field_errors': ['Les mots de passe ne correspondent pas.']})
         
         role = attrs.get('role')
         if role not in [User.Role.ATTENDEE, User.Role.ORGANIZER, 'attendee', 'organizer']:
@@ -50,16 +75,23 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password_confirm', None)
-        validated_data['status'] = User.Status.PENDING
-        validated_data['is_active'] = False
-        validated_data['role'] = validated_data.get('role') or User.Role.ATTENDEE
+        
+        role = validated_data.get('role') or User.Role.ATTENDEE
+        
+        if role in [User.Role.ATTENDEE, 'attendee']:
+            validated_data['status'] = User.Status.APPROVED
+            validated_data['is_active'] = True
+        else:
+            validated_data['status'] = User.Status.PENDING
+            validated_data['is_active'] = False
+        
         user = User.objects.create_user(
             email=validated_data['email'],
             password=validated_data.get('password'),
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             phone=validated_data.get('phone', ''),
-            role=validated_data['role'],
+            role=role,
             status=validated_data['status'],
             is_active=validated_data['is_active'],
         )
@@ -137,6 +169,18 @@ class LoginSerializer(TokenObtainPairSerializer):
             user.status = user.status or User.Status.APPROVED
             user.role = user.role or User.Role.ATTENDEE
             user.save(update_fields=['is_active', 'status', 'role', 'updated_at'])
+
+        if user.role == User.Role.ORGANIZER and user.status == User.Status.PENDING:
+            raise serializers.ValidationError({
+                'detail': 'Votre compte organisateur est en attente d\'approbation. Veuillez attendre la validation par l\'administrateur.',
+                'status': 'pending'
+            })
+
+        if user.role == User.Role.ORGANIZER and user.status == User.Status.REJECTED:
+            raise serializers.ValidationError({
+                'detail': 'Votre compte organisateur a été rejeté. Veuillez contacter l\'administrateur.',
+                'status': 'rejected'
+            })
 
         otp_code = attrs.get('otp_code')
         

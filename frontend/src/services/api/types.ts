@@ -66,6 +66,9 @@ export type EventListItem = {
   min_price: string | number | null
   tickets_sold: number
   is_sold_out: boolean
+  is_expired: boolean
+  tickets_total: number
+  tickets_available: number
   average_rating: number
   reviews_count: number
 }

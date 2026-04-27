@@ -120,6 +120,11 @@ def sync_payment_from_checkout_session(payment, session):
         ticket_type.quantity_sold += quantity
         ticket_type.save(update_fields=['quantity_sold'])
 
+        event = ticket_type.event
+        if event.tickets_available >= quantity:
+            event.tickets_available -= quantity
+            event.save(update_fields=['tickets_available'])
+
         # Credit organizer wallet
         organizer = ticket_type.event.organizer
         wallet, _ = Wallet.objects.select_for_update().get_or_create(user=organizer)
@@ -191,12 +196,23 @@ class CreateCheckoutSessionView(APIView):
         serializer.is_valid(raise_exception=True)
 
         from apps.tickets.models import TicketType
+        from django.utils import timezone
 
         ticket_type = get_object_or_404(TicketType, id=serializer.validated_data['ticket_type_id'])
         quantity = serializer.validated_data['quantity']
+        event = ticket_type.event
+
+        if event.status != 'approved':
+            return Response({'detail': 'Event is not approved.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if event.start_date <= timezone.now():
+            return Response({'detail': 'Event has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if event.tickets_available < quantity:
+            return Response({'detail': 'Not enough tickets available.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if ticket_type.available_quantity < quantity:
-            return Response({'detail': 'Not enough tickets available.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Not enough tickets available for this ticket type.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             metadata = {

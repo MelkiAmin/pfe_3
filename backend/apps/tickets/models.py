@@ -77,3 +77,11 @@ class Ticket(models.Model):
             self.save(update_fields=['qr_code', 'updated_at'])
 
         return self.qr_code
+
+    def get_qr_code_url(self) -> str | None:
+        if not self.qr_code:
+            return None
+        from django.conf import settings
+        from urllib.parse import urljoin
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        return urljoin(media_url, self.qr_code.name)

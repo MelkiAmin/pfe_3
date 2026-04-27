@@ -2,7 +2,6 @@ import { ofetch } from 'ofetch'
 import { authSession } from '@/services/http/axios'
 
 const apiBaseURL = import.meta.env.VITE_API_BASE_URL || '/api'
-const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 type ApiRequestOptions = {
   _retried?: boolean

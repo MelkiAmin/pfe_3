@@ -85,9 +85,11 @@ export const useCatalogStore = defineStore('catalog', {
         this.totalItems = response.count
       }
       catch (error: any) {
+        console.error('[Catalog] Error response:', error.response?.data)
         this.events = []
         this.totalItems = 0
-        this.notify(error?.data?.detail || error?.message || 'Impossible de charger les evenements.', 'error')
+        const backendDetail = error.response?.data?.detail
+        this.notify(backendDetail || error?.message || 'Impossible de charger les evenements.', 'error')
       }
       finally {
         this.loading = false
