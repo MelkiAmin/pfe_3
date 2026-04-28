@@ -35,6 +35,10 @@ export const eventsApi = {
     return $api<EventListItem[]>(`/events/featured/?limit=${limit}`, { _skipAuth: true })
   },
 
+  listRecommended(limit = 6) {
+    return $api<EventListItem[]>(`/events/recommended/?limit=${limit}`, { _skipAuth: true })
+  },
+
   listCategories() {
     return $api<PaginatedResponse<Category>>('/events/categories/', { _skipAuth: true })
   },

@@ -36,6 +36,7 @@ const parseCart = (): CartItem[] => {
     return []
   }
 }
+}
 
 export const useCartStore = defineStore('cart', {
   state: () => ({

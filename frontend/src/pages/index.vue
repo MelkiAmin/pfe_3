@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import EventCard from '@/components/events/EventCard.vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useAuthStore } from '@/stores/auth'
-import { $api } from '@/utils/api'
-import type { EventListItem } from '@/services/api'
 
 definePage({
   meta: {
@@ -16,10 +14,7 @@ definePage({
 
 const catalogStore = useCatalogStore()
 const authStore = useAuthStore()
-const { featuredEvents, events, categories, loading, featuredLoading, categoriesLoading } = storeToRefs(catalogStore)
-
-const recommendedEvents = ref<EventListItem[]>([])
-const recommendedLoading = ref(false)
+const { featuredEvents, events, categories, loading, featuredLoading, categoriesLoading, recommendedEvents } = storeToRefs(catalogStore)
 
 const isLoggedIn = computed(() => authStore.isAuthenticated)
 const userRole = computed(() => authStore.role)
@@ -42,20 +37,7 @@ const features = [
 
 const fetchRecommendations = async () => {
   if (!authStore.isAuthenticated) return
-  
-  recommendedLoading.value = true
-  try {
-    const response = await $api<{ recommendations: EventListItem[] }>('/events/recommendations/', { _skipAuth: false })
-    if (response && response.recommendations) {
-      recommendedEvents.value = response.recommendations
-    }
-  }
-  catch {
-    console.log('Recommendations not available')
-  }
-  finally {
-    recommendedLoading.value = false
-  }
+  await catalogStore.fetchRecommendedEvents()
 }
 
 onMounted(async () => {

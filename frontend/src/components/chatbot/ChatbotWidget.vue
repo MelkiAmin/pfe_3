@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
+import { $api } from '@/utils/api'
 import type { EventListItem } from '@/services/api'
 
 interface ChatMessage {
@@ -64,21 +65,12 @@ const sendMessage = async () => {
 
   try {
     console.log('[Chatbot] Sending message:', msg)
-    const response = await fetch('/api/events/chatbot/chat/', {
+    const data = await $api<ChatbotResponse>('/events/chatbot/chat/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg }),
+      body: { message: msg },
+      _skipAuth: true,
     })
 
-    console.log('[Chatbot] Response status:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[Chatbot] HTTP Error:', response.status, errorText)
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const data: ChatbotResponse = await response.json()
     console.log('[Chatbot] Response data:', data)
 
     const replyContent = data.reply || data.response

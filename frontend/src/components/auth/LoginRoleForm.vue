@@ -15,13 +15,13 @@ const form = reactive({
 const isPasswordVisible = ref(false)
 const formError = ref('')
 
-const demoAccounts = [
+const demoAccounts: { title: string; email: string; password: string }[] = [
   { title: 'Admin', email: 'admin@planova.com', password: 'admin123' },
   { title: 'Organisateur', email: 'organisateur@planova.com', password: 'org123' },
   { title: 'Utilisateur', email: 'user@planova.com', password: 'user123' },
 ]
 
-const fillAccount = (account: typeof demoAccounts[number]) => {
+const fillAccount = (account: { title: string; email: string; password: string }) => {
   form.email = account.email
   form.password = account.password
 }

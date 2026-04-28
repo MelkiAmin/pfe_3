@@ -24,9 +24,11 @@ export const useCatalogStore = defineStore('catalog', {
   state: () => ({
     events: [] as EventListItem[],
     featuredEvents: [] as EventListItem[],
+    recommendedEvents: [] as EventListItem[],
     categories: [] as Category[],
     loading: false,
     featuredLoading: false,
+    recommendedLoading: false,
     categoriesLoading: false,
     totalItems: 0,
     page: 1,
@@ -108,6 +110,21 @@ export const useCatalogStore = defineStore('catalog', {
       }
       finally {
         this.featuredLoading = false
+      }
+    },
+
+    async fetchRecommendedEvents() {
+      this.featuredLoading = true
+      try {
+        const response = await eventsApi.listRecommended(6)
+        this.recommendedEvents = Array.isArray(response) ? response : []
+      }
+      catch (error: any) {
+        console.error('Failed to fetch recommended events:', error)
+        this.recommendedEvents = []
+      }
+      finally {
+        this.recommendedLoading = false
       }
     },
 
