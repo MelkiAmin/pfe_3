@@ -43,7 +43,7 @@ watch([isFallbackStateActive, refLoadingIndicator], () => {
   >
     <AppLoadingIndicator ref="refLoadingIndicator" />
 
-    <RouterView />
+    <RouterView :key="$route.fullPath" />
   </Component>
 </template>
 

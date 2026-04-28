@@ -10,16 +10,9 @@ const props = defineProps<{
 const router = useRouter()
 
 const handleConsultClick = () => {
-  const event = props.event
-  if (!event || !event.id) return
-
-  const slug = event.slug || `id-${event.id}`
-  const timestamp = Date.now()
-  
-  router.push({
-    path: `/events/${slug}`,
-    query: { t: timestamp }
-  })
+  const eventId = props.event?.id
+  if (!eventId) return
+  router.push(`/events/${eventId}`)
 }
 
 const priceLabel = computed(() => {

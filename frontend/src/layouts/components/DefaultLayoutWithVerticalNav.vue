@@ -5,85 +5,49 @@ import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import { useAuthStore } from '@/stores/auth'
 
-defineProps<{
-  navItems?: unknown[]
-}>()
-
 const route = useRoute()
 const authStore = useAuthStore()
 
 const isHomePage = computed(() => route.path === '/')
 
+const isEventsPage = computed(() => {
+  return route.path?.startsWith('/events') === true
+})
+
+const hasToken = computed(() => {
+  return Boolean(
+    authStore.accessToken ||
+    localStorage.getItem('auth_access_token')
+  )
+})
+
+const userRole = computed(() => {
+  if (authStore.role) return authStore.role
+
+  try {
+    const userData = localStorage.getItem('auth_user')
+    return userData ? JSON.parse(userData)?.role : null
+  } catch {
+    return null
+  }
+})
+
+const isAttendee = computed(() => userRole.value === 'attendee')
+
 const showChatbot = computed(() => {
-  const hasToken = Boolean(authStore.accessToken || localStorage.getItem('auth_access_token'))
-  
-  let userRole = authStore.role
-  if (!userRole) {
-    try {
-      const userData = localStorage.getItem('auth_user')
-      if (userData) {
-        const parsed = JSON.parse(userData)
-        userRole = parsed?.role
-      }
-    }
-    catch {
-      userRole = null
-    }
-  }
-  
-  const isAttendee = userRole === 'attendee'
-  const isHome = route.path === '/'
-  const isEvents = route.path === '/events'
-  const isPublicPage = isHome || isEvents
-  const shouldShow = isPublicPage || !hasToken || (hasToken && isAttendee)
-  
-  console.log('[Layout] Chatbot visibility - role from store:', authStore.role, 'role from storage:', userRole, 'isAttendee:', isAttendee, 'hasToken:', hasToken, 'isHome:', isHome, 'isEvents:', isEvents, 'shouldShow:', shouldShow)
-  
-  return shouldShow
+  const isPublicPage = isHomePage.value || isEventsPage.value
+  return isPublicPage || isAttendee.value
 })
 
-const navigationItems = computed(() => {
-  const items = []
-
-  if (authStore.isAuthenticated) {
-    items.push(
-      { title: 'Accueil', to: '/', icon: 'tabler-home' },
-      { title: 'Evenements', to: '/events', icon: 'tabler-ticket' },
-    )
-  } else {
-    items.push(
-      { title: 'Accueil', to: '/', icon: 'tabler-home' },
-      { title: 'Evenements', to: '/events', icon: 'tabler-ticket' },
-    )
-  }
-
-  if (authStore.role === 'admin') {
-    items.push(
-      { title: 'Utilisateurs', to: '/admin/users', icon: 'tabler-users' },
-      { title: 'Organisateurs', to: '/admin/organizers', icon: 'tabler-building' },
-      { title: 'Approbations', to: '/admin/approvals', icon: 'tabler-user-check' },
-      { title: 'Evenements', to: '/admin/events', icon: 'tabler-calendar' },
-      { title: 'Validations', to: '/admin/validations', icon: 'tabler-checkup-list' },
-      { title: 'Statistiques', to: '/admin/status', icon: 'tabler-chart-histogram' },
-    )
-  }
-
-  if (authStore.role === 'organizer') {
-    items.push(
-      { title: 'Mon tableau de bord', to: '/status', icon: 'tabler-chart-bar' },
-    )
-  }
-
-  return items
-})
+const navigationItems = [
+  { title: 'Accueil', to: '/', icon: 'tabler-home' },
+  { title: 'Événements', to: '/events', icon: 'tabler-calendar' },
+]
 
 const isActive = (path: string) => {
-  if (path === '/')
-    return route.path === '/'
-  return route.path.startsWith(path)
+  return route.path === path || route.path?.startsWith(path + '/')
 }
 </script>
-
 <template>
   <div class="vertical-layout-shell">
     <header class="topbar">
