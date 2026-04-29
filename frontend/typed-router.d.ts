@@ -33,7 +33,6 @@ declare module 'vue-router/auto-routes' {
     'cart': RouteRecordInfo<'cart', '/cart', Record<never, never>, Record<never, never>>,
     'checkout-order-id': RouteRecordInfo<'checkout-order-id', '/checkout/:orderId', { orderId: ParamValue<true> }, { orderId: ParamValue<false> }>,
     'dashboard-tickets': RouteRecordInfo<'dashboard-tickets', '/dashboard/tickets', Record<never, never>, Record<never, never>>,
-    'events-parent': RouteRecordInfo<'events-parent', '/events', Record<never, never>, Record<never, never>>,
     'events': RouteRecordInfo<'events', '/events', Record<never, never>, Record<never, never>>,
     'events-id': RouteRecordInfo<'events-id', '/events/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'events-create': RouteRecordInfo<'events-create', '/events/create', Record<never, never>, Record<never, never>>,

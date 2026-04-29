@@ -24,7 +24,7 @@ router.beforeEach(async (to, from) => {
   const authStore = useAuthStore(store)
   authStore.bootstrap()
 
-  const accessToken = authStore.accessToken
+  const accessToken = authStore.accessToken || localStorage.getItem('auth_access_token')
   const role = authStore.role as string
   const isAuthPage = to.path === '/login' || to.path === '/register'
   const isExplicitPublicPath = to.path === '/login'

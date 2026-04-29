@@ -14,7 +14,7 @@ definePage({
 
 const catalogStore = useCatalogStore()
 const authStore = useAuthStore()
-const { featuredEvents, events, categories, loading, featuredLoading, categoriesLoading, recommendedEvents } = storeToRefs(catalogStore)
+const { featuredEvents, events, categories, loading, featuredLoading, categoriesLoading, recommendedEvents, recommendedLoading } = storeToRefs(catalogStore)
 
 const isLoggedIn = computed(() => authStore.isAuthenticated)
 const userRole = computed(() => authStore.role)

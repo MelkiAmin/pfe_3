@@ -39,10 +39,32 @@ const showChatbot = computed(() => {
   return isPublicPage || isAttendee.value
 })
 
-const navigationItems = [
-  { title: 'Accueil', to: '/', icon: 'tabler-home' },
-  { title: 'Événements', to: '/events', icon: 'tabler-calendar' },
-]
+const navigationItems = computed(() => {
+  const baseItems = [
+    { title: 'Accueil', to: '/', icon: 'tabler-home' },
+    { title: 'Événements', to: '/events', icon: 'tabler-calendar' },
+  ]
+
+  if (userRole.value === 'admin') {
+    return [
+      ...baseItems,
+      { title: 'Utilisateurs', to: '/admin/users', icon: 'tabler-users' },
+      { title: 'Organisateurs', to: '/admin/organizers', icon: 'tabler-user-star' },
+      { title: 'Approbations', to: '/admin/approvals', icon: 'tabler-checkup' },
+      { title: 'Validations', to: '/admin/events', icon: 'tabler-check' },
+      { title: 'Statistiques', to: '/admin/dashboard', icon: 'tabler-chart-bar' },
+    ]
+  }
+
+  if (userRole.value === 'organizer') {
+    return [
+      ...baseItems,
+      { title: 'Tableau de bord', to: '/organizer/dashboard', icon: 'tabler-layout-dashboard' },
+    ]
+  }
+
+  return baseItems
+})
 
 const isActive = (path: string) => {
   return route.path === path || route.path?.startsWith(path + '/')

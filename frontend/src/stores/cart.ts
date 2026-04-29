@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { paymentsApi } from '@/services/api'
+import { authSession } from '@/services/http/axios'
 
 export type CartItem = {
   key: string
@@ -52,7 +53,7 @@ export const useCartStore = defineStore('cart', {
     },
     totalQuantity: state => state.items.reduce((sum, item) => sum + item.quantity, 0),
     eventsInCart: state => {
-      const eventIds = [...new Set(state.items.map(item => item.eventId))]
+      const eventIds = Array.from(new Set(state.items.map(item => item.eventId)))
       return eventIds
     },
   },
@@ -112,62 +113,88 @@ export const useCartStore = defineStore('cart', {
       return this.items.filter(item => item.eventId === eventId)
     },
 
-    async checkoutForEvent(eventId: number): Promise<CheckoutResult> {
-      const eventItems = this.getItemsForEvent(eventId)
-      if (eventItems.length === 0)
-        throw new Error('Aucun article pour cet evenement.')
+    validateBeforeCheckout(): string | null {
+      if (!this.items.length) return 'Votre panier est vide.'
+      if (!this.validateStocks()) return 'Stock insuffisant pour un ou plusieurs billets.'
+      
+      for (const item of this.items) {
+        if (!item.eventId || !item.ticketTypeId) return 'Données panier invalides.'
+        if (!item.quantity || item.quantity < 1) return 'Quantité invalide.'
+        if (item.quantity > item.availableQuantity) return `Plus assez de places pour ${item.eventTitle}.`
+      }
+      return null
+    },
 
-      if (!eventItems.every(item => item.quantity <= item.availableQuantity))
-        throw new Error('Stock insuffisant pour un ou plusieurs billets.')
+    getCheckoutPayload(item: CartItem) {
+      return {
+        ticket_type_id: item.ticketTypeId,
+        quantity: item.quantity,
+        success_url: `${window.location.origin}/history`,
+        cancel_url: `${window.location.origin}/events/${item.eventId}`,
+      }
+    },
+
+    async checkoutForEvent(eventId: number): Promise<CheckoutResult> {
+      const { access } = authSession.getTokens()
+      if (!access) throw new Error('Veuillez vous connecter pour effectuer un paiement.')
+
+      const eventItems = this.getItemsForEvent(eventId)
+      if (eventItems.length === 0) throw new Error('Aucun article pour cet evenement.')
+      if (!eventItems.every(item => item.quantity <= item.availableQuantity)) throw new Error('Stock insuffisant.')
 
       this.checkoutLoading = true
       try {
         const item = eventItems[0]
-        return await paymentsApi.createCheckoutSession({
-          ticket_type_id: item.ticketTypeId,
-          quantity: item.quantity,
-          success_url: `${window.location.origin}/history`,
-          cancel_url: `${window.location.origin}/events/id-${item.eventId}`,
-        })
+        const result = await paymentsApi.createCheckoutSession(this.getCheckoutPayload(item))
+        if (!result.checkout_url) throw new Error('Erreur Stripe: URL de paiement manquante.')
+        return result
       } finally {
         this.checkoutLoading = false
       }
     },
 
     async checkout(): Promise<GroupedCheckout[]> {
-      if (!this.validateStocks())
-        throw new Error('Stock insuffisant pour un ou plusieurs billets.')
+      const { access } = authSession.getTokens()
+      if (!access) throw new Error('Veuillez vous connecter pour effectuer un paiement.')
 
-      if (this.items.length === 0)
-        throw new Error('Votre panier est vide.')
+      const validationError = this.validateBeforeCheckout()
+      if (validationError) throw new Error(validationError)
+
+      if (this.items.length === 0) throw new Error('Votre panier est vide.')
 
       this.checkoutLoading = true
       try {
         const results: GroupedCheckout[] = []
-        const eventIds = this.eventsInCart
+        const uniqueEventIds = Array.from(new Set(this.items.map(i => i.eventId))) as number[]
 
-        for (const eventId of eventIds) {
+        for (const eventId of uniqueEventIds) {
           const eventItems = this.getItemsForEvent(eventId)
-          const eventTitle = eventItems[0]?.eventTitle || `Event #${eventId}`
-          const total = eventItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+          if (!eventItems.length) continue
 
           const item = eventItems[0]
-          const result = await paymentsApi.createCheckoutSession({
-            ticket_type_id: item.ticketTypeId,
-            quantity: item.quantity,
-            success_url: `${window.location.origin}/history`,
-            cancel_url: `${window.location.origin}/events/id-${item.eventId}`,
-          })
+          if (item.quantity > item.availableQuantity) {
+            throw new Error(`Places insuffisantes pour ${item.eventTitle}`)
+          }
+
+          const result = await paymentsApi.createCheckoutSession(this.getCheckoutPayload(item))
+          
+          if (!result.checkout_url) {
+            throw new Error(`Erreur Stripe pour ${item.eventTitle}`)
+          }
+
           results.push({
             eventId,
-            eventTitle,
+            eventTitle: item.eventTitle,
             items: eventItems,
-            total,
+            total: eventItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
             checkoutUrl: result.checkout_url,
           })
         }
 
         return results
+      } catch (error: any) {
+        console.error('[Cart] Checkout error:', error)
+        throw error
       } finally {
         this.checkoutLoading = false
       }

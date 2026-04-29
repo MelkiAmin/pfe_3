@@ -256,7 +256,15 @@ class CreateCheckoutSessionView(APIView):
             })
 
         except stripe.error.StripeError as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Stripe checkout error: {str(e)}', exc_info=True)
+            return Response({'detail': 'Erreur de paiement. Veuillez réessayer.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Checkout error: {str(e)}', exc_info=True)
+            return Response({'detail': 'Erreur serveur. Veuillez réessayer.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PaymentConfirmationView(APIView):

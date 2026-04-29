@@ -47,6 +47,11 @@ const updateItemQuantity = (item: CartItem, delta: number) => {
 }
 
 const checkoutForEvent = async (eventId: number) => {
+  if (!authStore.isAuthenticated) {
+    router.push('/login?redirect=/cart')
+    return
+  }
+
   checkoutErrors.value[eventId] = ''
   processingEvents.value.push(eventId)
 
@@ -55,7 +60,8 @@ const checkoutForEvent = async (eventId: number) => {
     window.location.href = result.checkout_url
   }
   catch (error: any) {
-    checkoutErrors.value[eventId] = error?.message || 'Impossible de lancer le paiement.'
+    const msg = error?.message || error?.detail || 'Impossible de lancer le paiement.'
+    checkoutErrors.value[eventId] = msg
   }
   finally {
     processingEvents.value = processingEvents.value.filter(id => id !== eventId)
@@ -63,7 +69,7 @@ const checkoutForEvent = async (eventId: number) => {
 }
 
 const goToEvent = (eventId: number) => {
-  router.push(`/events/id-${eventId}`)
+  router.push(`/events/${eventId}`)
 }
 </script>
 

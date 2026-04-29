@@ -10,7 +10,7 @@ import type { EventDetail, TicketType } from '@/services/api'
 definePage({
   meta: {
     public: true,
-    layout: 'default',
+   /* layout: 'default',*/
   },
 })
 

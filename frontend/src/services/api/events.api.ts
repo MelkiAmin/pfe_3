@@ -36,7 +36,7 @@ export const eventsApi = {
   },
 
   listRecommended(limit = 6) {
-    return $api<EventListItem[]>(`/events/recommended/?limit=${limit}`, { _skipAuth: true })
+    return $api<any>(`/events/recommended/?limit=${limit}`)
   },
 
   listCategories() {

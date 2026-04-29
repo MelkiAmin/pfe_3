@@ -114,10 +114,16 @@ export const useCatalogStore = defineStore('catalog', {
     },
 
     async fetchRecommendedEvents() {
-      this.featuredLoading = true
+      this.recommendedLoading = true
       try {
-        const response = await eventsApi.listRecommended(6)
-        this.recommendedEvents = Array.isArray(response) ? response : []
+        const response = await eventsApi.listRecommended(6) as any
+        if (Array.isArray(response)) {
+          this.recommendedEvents = response
+        } else if (response && response.recommendations) {
+          this.recommendedEvents = response.recommendations
+        } else {
+          this.recommendedEvents = []
+        }
       }
       catch (error: any) {
         console.error('Failed to fetch recommended events:', error)

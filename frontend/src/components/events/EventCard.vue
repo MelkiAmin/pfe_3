@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import LazyImage from '@/components/common/LazyImage.vue'
 import type { EventListItem } from '@/services/api'

@@ -100,12 +100,17 @@ const parseErrorMessage = (error: unknown) => {
 }
 
 const loadCategories = async () => {
-  try {
-    categories.value = await eventsApi.listCategories()
-  }
-  catch {
-    categories.value = []
-  }
+  categories.value = [
+    { id: 1, name: 'Technologie', slug: 'technologie', description: '', icon: 'tabler-code' },
+    { id: 2, name: 'Sport', slug: 'sport', description: '', icon: 'tabler-ball' },
+    { id: 3, name: 'Musique', slug: 'musique', description: '', icon: 'tabler-music' },
+    { id: 4, name: 'Éducation', slug: 'education', description: '', icon: 'tabler-school' },
+    { id: 5, name: 'Business', slug: 'business', description: '', icon: 'tabler-briefcase' },
+    { id: 6, name: 'Culture', slug: 'culture', description: '', icon: 'tabler-artboard' },
+    { id: 7, name: 'Santé', slug: 'sante', description: '', icon: 'tabler-heart' },
+    { id: 8, name: 'Gaming', slug: 'gaming', description: '', icon: 'tabler-gamepad' },
+    { id: 9, name: 'Autre', slug: 'autre', description: '', icon: 'tabler-category' },
+  ]
 }
 
 const onCoverSelected = (files: File[] | File | null) => {

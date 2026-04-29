@@ -39,14 +39,17 @@ const load = async () => {
       items.value = await eventsApi.list()
     }
     else {
-      const [payments, tickets] = await Promise.all([
-        paymentsApi.listHistory(),
-        ticketsApi.listTickets(),
-      ])
-      items.value = payments.map(payment => ({
-        ...payment,
-        ticket_count: tickets.filter(ticket => ticket.event === payment.event).length,
-      }))
+      try {
+        const payments = await paymentsApi.listHistory()
+        const tickets = await ticketsApi.listTickets()
+        items.value = payments.map(payment => ({
+          ...payment,
+          ticket_count: tickets.filter(ticket => ticket.event === payment.event).length,
+        }))
+      }
+      catch {
+        items.value = []
+      }
     }
   }
   catch {
